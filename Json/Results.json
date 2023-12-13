@@ -1,0 +1,222 @@
+[
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 857,
+                "resultType": "Read",
+                "color": "teal"
+            },
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1053,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "simdjson",
+                "resultSpeed": 805,
+                "resultType": "Read",
+                "color": "cadetblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 717,
+                "resultType": "Read",
+                "color": "dodgerblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1004,
+                "resultType": "Write",
+                "color": "skyblue"
+            }
+        ],
+        "testName": "Single Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1334,
+                "resultType": "Read",
+                "color": "teal"
+            },
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1207,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1072,
+                "resultType": "Read",
+                "color": "dodgerblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1133,
+                "resultType": "Write",
+                "color": "skyblue"
+            },
+            {
+                "libraryName": "simdjson",
+                "resultSpeed": 893,
+                "resultType": "Read",
+                "color": "cadetblue"
+            }
+        ],
+        "testName": "Multi Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1330,
+                "resultType": "Read",
+                "color": "teal"
+            },
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1206,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1070,
+                "resultType": "Read",
+                "color": "dodgerblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1133,
+                "resultType": "Write",
+                "color": "skyblue"
+            },
+            {
+                "libraryName": "simdjson",
+                "resultSpeed": 395,
+                "resultType": "Read",
+                "color": "cadetblue"
+            }
+        ],
+        "testName": "Abc Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1929,
+                "resultType": "Read",
+                "color": "teal"
+            },
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 2013,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1247,
+                "resultType": "Read",
+                "color": "dodgerblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1994,
+                "resultType": "Write",
+                "color": "skyblue"
+            },
+            {
+                "libraryName": "simdjson",
+                "resultSpeed": 243,
+                "resultType": "Read",
+                "color": "cadetblue"
+            }
+        ],
+        "testName": "Discord Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1759,
+                "resultType": "Read",
+                "color": "teal"
+            },
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 2851,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "simdjson",
+                "resultSpeed": 1248,
+                "resultType": "Read",
+                "color": "cadetblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 1222,
+                "resultType": "Read",
+                "color": "dodgerblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 2656,
+                "resultType": "Write",
+                "color": "skyblue"
+            }
+        ],
+        "testName": "Twitter Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1850,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "simdjson",
+                "resultSpeed": 1079,
+                "resultType": "Write",
+                "color": "cornflowerblue"
+            }
+        ],
+        "testName": "Minify Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 876,
+                "resultType": "Write",
+                "color": "steelblue"
+            },
+            {
+                "libraryName": "glaze",
+                "resultSpeed": 261,
+                "resultType": "Write",
+                "color": "skyblue"
+            }
+        ],
+        "testName": "Prettify Test"
+    },
+    {
+        "results": [
+            {
+                "libraryName": "jsonifier",
+                "resultSpeed": 1277,
+                "resultType": "Read",
+                "color": "teal"
+            }
+        ],
+        "testName": "Validate Test"
+    }
+]
