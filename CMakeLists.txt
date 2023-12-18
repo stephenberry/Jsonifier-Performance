@@ -36,7 +36,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(simdjson)
 
-add_executable("${PROJECT_NAME}" "./Source/main.cpp" "./Source/ConformanceTests.hpp")
+add_executable("${PROJECT_NAME}" "./Source/main.cpp" "./Source/ConformanceTests.hpp" "Source/main.cpp")
 
 target_link_libraries("${PROJECT_NAME}" PRIVATE Jsonifier::Jsonifier glaze::glaze simdjson::simdjson)
 
