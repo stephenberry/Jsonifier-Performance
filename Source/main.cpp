@@ -420,7 +420,7 @@ template<> struct jsonifier::core<twitter_message> {
 	using value_type				 = twitter_message;
 	static constexpr auto parseValue = createValue("statuses", &value_type::statuses, "search_metadata", &value_type::searchMetadata);
 };
-
+#if !defined(ASAN)
 template<> struct glz::meta<search_metadata> {
 	using value_type = search_metadata;
 	static constexpr auto value =
@@ -510,7 +510,7 @@ template<> struct glz::meta<twitter_message> {
 	using value_type			= twitter_message;
 	static constexpr auto value = object("statuses", &value_type::statuses, "search_metadata", &value_type::searchMetadata);
 };
-
+#endif
 template<> struct jsonifier::core<user_data> {
 	using value_type				 = user_data;
 	static constexpr auto parseValue = createValue("id", &value_type::id, "username", &value_type::userName, "discriminator", &value_type::discriminator, "bot", &value_type::bot,
@@ -567,7 +567,7 @@ template<> struct jsonifier::core<discord_message> {
 	using OTy						 = discord_message;
 	static constexpr auto parseValue = createValue("t", &OTy::t, "s", &OTy::s, "op", &OTy::op, "d", &OTy::d);
 };
-
+#if !defined(ASAN)
 template<> struct glz::meta<user_data> {
 	using value_type			= user_data;
 	static constexpr auto value = object("id", &value_type::id, "username", &value_type::userName, "discriminator", &value_type::discriminator, "bot", &value_type::bot, "system",
@@ -625,7 +625,7 @@ template<> struct glz::meta<discord_message> {
 	using OTy					= discord_message;
 	static constexpr auto value = object("t", &OTy::t, "s", &OTy::s, "op", &OTy::op, "d", &OTy::d);
 };
-
+#endif
 struct test_struct {
 	std::vector<std::string> testStrings{};
 	jsonifier::vector<bool> testBools{};
@@ -664,7 +664,7 @@ template<typename OTy> struct TestGenerator {
 		std::string buffer{};
 		TestGenerator generator{};
 		jsonifier::jsonifier_core parser{};
-		glz::write_json(generator, buffer);
+		//glz::write_json(generator, buffer);
 		//std::cout << "SERIALIZED JSON (GLAZE): " << buffer << std::endl;
 		buffer.clear();
 		parser.serializeJson(generator, buffer);
@@ -904,7 +904,6 @@ struct results {
 	std::string jsonStats() {
 		std::string write{};
 		std::string read{};
-		std::string finalstring{};
 		if (json_read && json_read_byte_length) {
 			double mbReadCount	   = static_cast<double>(*json_read_byte_length) / 1e+6l;
 			double readSecondCount = *json_read / 1e+9l;
@@ -924,8 +923,7 @@ struct results {
 			write = "N/A";
 		}
 
-		finalstring = std::string{ "| [" + name + "](" + url + ") | " + write + " | " + read + " |" };
-		return finalstring;
+		return std::string{ "| [" + name + "](" + url + ") | " + read + " | " + write + " |" };
 	}
 };
 
@@ -1218,7 +1216,7 @@ auto jsonifierMinifyTest(jsonifier::string_view discordDataNew, bool doWePrint =
 
 	auto result = benchmark(
 		[&]() {
-			buffer = parser.minify(buffer);
+			parser.minify(buffer);
 		},
 		iterations);
 
@@ -1258,7 +1256,7 @@ auto jsonifierPrettifyTest(jsonifier::string_view discordDataNew, bool doWePrint
 
 	return r;
 }
-
+#if !defined(ASAN)
 auto glazeSingleTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
 	std::string buffer{ bufferNew };
 
@@ -1464,7 +1462,7 @@ auto glazePrettifyTest(jsonifier::string_view discordDataNew, bool doWePrint = t
 
 	auto result = benchmark(
 		[&]() {
-			buffer = glz::prettify(buffer);
+			glz::prettify(buffer);
 		},
 		iterations);
 
@@ -1480,7 +1478,7 @@ auto glazePrettifyTest(jsonifier::string_view discordDataNew, bool doWePrint = t
 	return r;
 }
 
-#include "simdjson.h"
+	#include "simdjson.h"
 
 using namespace simdjson;
 
@@ -1545,27 +1543,27 @@ template<> void simdPullArray<std::string>(ondemand::array newX, std::vector<std
 	}
 }
 
-#define SIMD_Pull(x) \
-	{ \
-		ondemand::array newX = doc[#x].get_array().value(); \
-		ondemand::array newArray{}; \
-		ondemand::object newObject{}; \
-		for (ondemand::value value: newX) { \
-			test_struct newStruct{}; \
-			newObject = value.get_object(); \
-			newArray  = newObject["testInts"].get_array().value(); \
-			simdPullArray(newArray, newStruct.testInts); \
-			newArray = newObject["testDoubles"].get_array().value(); \
-			simdPullArray(newArray, newStruct.testDoubles); \
-			newArray = newObject["testStrings"].get_array().value(); \
-			simdPullArray(newArray, newStruct.testStrings); \
-			newArray = newObject["testUints"].get_array().value(); \
-			simdPullArray(newArray, newStruct.testUints); \
-			newArray = newObject["testBools"].get_array().value(); \
-			simdPullArray(newArray, newStruct.testBools); \
-			obj.x.emplace_back(std::move(newStruct)); \
-		} \
-	}
+	#define SIMD_Pull(x) \
+		{ \
+			ondemand::array newX = doc[#x].get_array().value(); \
+			ondemand::array newArray{}; \
+			ondemand::object newObject{}; \
+			for (ondemand::value value: newX) { \
+				test_struct newStruct{}; \
+				newObject = value.get_object(); \
+				newArray  = newObject["testInts"].get_array().value(); \
+				simdPullArray(newArray, newStruct.testInts); \
+				newArray = newObject["testDoubles"].get_array().value(); \
+				simdPullArray(newArray, newStruct.testDoubles); \
+				newArray = newObject["testStrings"].get_array().value(); \
+				simdPullArray(newArray, newStruct.testStrings); \
+				newArray = newObject["testUints"].get_array().value(); \
+				simdPullArray(newArray, newStruct.testUints); \
+				newArray = newObject["testBools"].get_array().value(); \
+				simdPullArray(newArray, newStruct.testBools); \
+				obj.x.emplace_back(std::move(newStruct)); \
+			} \
+		}
 
 bool on_demand::readInOrder(Test<test_struct>& obj, const padded_string& json) {
 	ondemand::document doc = parser.iterate(json).value();
@@ -1781,7 +1779,7 @@ template<typename value_type> std::vector<value_type> getValues(simdjson::ondema
 		value_type roleValue;
 		role.get(roleValue);
 		roles.emplace_back(roleValue);
-	} 
+	}
 	return roles;
 }
 
@@ -1911,7 +1909,7 @@ template<> metadata getValue<metadata>(simdjson::ondemand::value jsonData) {
 	return meta;
 }
 
-template<> description getValue<description >(simdjson::ondemand::value jsonData) {
+template<> description getValue<description>(simdjson::ondemand::value jsonData) {
 	description desc;
 
 	for (auto value: jsonData["urls"].get_array()) {
@@ -2214,7 +2212,7 @@ template<> discord_message getValue<discord_message>(simdjson::ondemand::value j
 
 	message.s = getValue<uint64_t>(jsonData, "s");
 
-	message.op  = getValue<uint64_t>(jsonData, "op");
+	message.op = getValue<uint64_t>(jsonData, "op");
 
 	message.d = getValue<guild_data>(jsonData["d"]);
 
@@ -2284,7 +2282,7 @@ auto simdjsonDiscordTest(jsonifier::string_view discordData, bool doWePrint = tr
 	auto result = benchmark(
 		[&]() {
 			try {
-				auto doc = parser.iterate(buffer);
+				auto doc	= parser.iterate(buffer);
 				welcomeData = getValue<discord_message>(doc.value());
 			} catch (std ::exception& error) {
 				std::cout << "Simdjson Error: " << error.what() << std::endl;
@@ -2331,9 +2329,9 @@ auto simdjsonAbcTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
 
 	return r;
 }
-
+#endif
 std::string table_header = R"(
-| Library | Write (MB/s) | Read (MB/s) |
+| Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |)";
 
 template<typename function_type> std::string unitTest(function_type&& function, std::string testName) {
@@ -2358,6 +2356,7 @@ test_results multiTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
 	jsonResults.testName = "Multi Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		simdjsonTest(jsonData, false);
 	}
@@ -2366,6 +2365,7 @@ test_results multiTests(jsonifier::string_view jsonData) {
 		glazeTest(jsonData, false);
 	}
 	resultsNew.emplace_back(glazeTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierTest(jsonData, false);
 	}
@@ -2373,7 +2373,7 @@ test_results multiTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2395,6 +2395,7 @@ test_results twitterTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
 	jsonResults.testName = "Twitter Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		simdjsonTwitterTest(jsonData, false);
 	}
@@ -2403,6 +2404,7 @@ test_results twitterTests(jsonifier::string_view jsonData) {
 		glazeTwitterTest(jsonData, false);
 	}
 	resultsNew.emplace_back(glazeTwitterTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierTwitterTest(jsonData, false);
 	}
@@ -2410,7 +2412,7 @@ test_results twitterTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2432,6 +2434,7 @@ test_results abcTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
 	jsonResults.testName = "Abc Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		simdjsonAbcTest(jsonData, false);
 	}
@@ -2440,6 +2443,7 @@ test_results abcTests(jsonifier::string_view jsonData) {
 		glazeAbcTest(jsonData, false);
 	}
 	resultsNew.emplace_back(glazeAbcTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierAbcTest(jsonData, false);
 	}
@@ -2447,7 +2451,7 @@ test_results abcTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2468,15 +2472,17 @@ test_results abcTests(jsonifier::string_view jsonData) {
 test_results discordTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
+	jsonResults.testName = "Discord Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		simdjsonDiscordTest(jsonData, false);
 	}
 	resultsNew.emplace_back(simdjsonDiscordTest(jsonData));
-	jsonResults.testName = "Discord Test";
 	for (uint32_t x = 0; x < 2; ++x) {
 		glazeDiscordTest(jsonData, false);
 	}
 	resultsNew.emplace_back(glazeDiscordTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierDiscordTest(jsonData, false);
 	}
@@ -2484,7 +2490,7 @@ test_results discordTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
@@ -2506,6 +2512,7 @@ test_results singleTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
 	jsonResults.testName = "Single Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		simdjsonSingleTest(jsonData, false);
 	}
@@ -2514,6 +2521,7 @@ test_results singleTests(jsonifier::string_view jsonData) {
 		glazeSingleTest(jsonData, false);
 	}
 	resultsNew.emplace_back(glazeSingleTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierSingleTest(jsonData, false);
 	}
@@ -2521,7 +2529,7 @@ test_results singleTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2543,10 +2551,12 @@ test_results minifyTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
 	jsonResults.testName = "Minify Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		simdjsonMinifyTest(jsonData, false);
 	}
 	resultsNew.emplace_back(simdjsonMinifyTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierMinifyTest(jsonData, false);
 	}
@@ -2554,7 +2564,7 @@ test_results minifyTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2576,10 +2586,12 @@ test_results prettifyTests(jsonifier::string_view jsonData) {
 	std::vector<results> resultsNew{};
 	test_results jsonResults{};
 	jsonResults.testName = "Prettify Test";
+#if !defined(ASAN)
 	for (uint32_t x = 0; x < 2; ++x) {
 		glazePrettifyTest(jsonData, false);
 	}
 	resultsNew.emplace_back(glazePrettifyTest(jsonData));
+#endif
 	for (uint32_t x = 0; x < 2; ++x) {
 		jsonifierPrettifyTest(jsonData, false);
 	}
@@ -2587,7 +2599,7 @@ test_results prettifyTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2616,7 +2628,7 @@ test_results validationTests(jsonifier::string_view jsonData) {
 
 	std::string table{};
 	const auto n = resultsNew.size();
-	table += table_header + '\n';
+	table += table_header + "\n";
 	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
 	for (uint64_t x = 0; x < n; ++x) {
 		table += resultsNew[x].jsonStats();
@@ -2785,7 +2797,7 @@ int32_t main() {
 		FileLoader fileLoader03{ "../Json/Results.json" };
 		fileLoader02.saveFile(parser.prettify(jsonData.theData));
 #endif
-		jsonData.theData = parser.minify(parser.prettify(jsonData.theData));
+		jsonData.theData = parser.prettify(jsonData.theData);
 		std::string newTimeString{};
 		newTimeString.resize(1024);
 		std::tm resultTwo{};
