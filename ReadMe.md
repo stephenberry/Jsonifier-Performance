@@ -12,9 +12,9 @@ alt="DiscordCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | 1707.03 | 2070.97 |
-| [glaze](https://github.com/stephenberry/glaze) | 1180.29 | 2018.48 |
-| [simdjson](https://github.com/simdjson/simdjson) | 227.806 | N/A |
+| [glaze](https://github.com/stephenberry/glaze) | 1186.57 | 1230.65 |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | 1400.94 | 1092.71 |
+| [simdjson](https://github.com/simdjson/simdjson) | 194.211 | N/A |
 > 200 iterations on a 6 core (Intel i7 8700k)
 
 ### Twitter Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/twitter.json):
@@ -26,8 +26,9 @@ alt="TwitterCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | 1682.69 | 2902.14 |
-| [simdjson](https://github.com/simdjson/simdjson) | 1429.09 | N/A |
+| [glaze](https://github.com/stephenberry/glaze) | 1252.23 | 1824.25 |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | 1490.15 | 1647.62 |
+| [simdjson](https://github.com/simdjson/simdjson) | 1209.18 | N/A |
 > 200 iterations on a 6 core (Intel i7 8700k)
 
 ### Single Iteration Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData.json):
@@ -39,9 +40,9 @@ alt="SingleCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | 594.125 | 1017.09 |
-| [glaze](https://github.com/stephenberry/glaze) | 592.64 | 944.984 |
-| [simdjson](https://github.com/simdjson/simdjson) | 585.209 | N/A |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | 516.45 | 938.759 |
+| [glaze](https://github.com/stephenberry/glaze) | 531.446 | 621.029 |
+| [simdjson](https://github.com/simdjson/simdjson) | 476.421 | N/A |
 
 ### Multi Iteration Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData.json):
 
@@ -52,9 +53,9 @@ alt="MinifyCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | 932.832 | 1181.32 |
-| [glaze](https://github.com/stephenberry/glaze) | 898.418 | 1159.13 |
-| [simdjson](https://github.com/simdjson/simdjson) | 610.392 | N/A |
+| [glaze](https://github.com/stephenberry/glaze) | 796.194 | 980.497 |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | 759.339 | 969.671 |
+| [simdjson](https://github.com/simdjson/simdjson) | 518.207 | N/A |
 > 200 iterations on a 6 core (Intel i7 8700k)
 
 ### ABC Test (Out of Sequence Performance) [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData.json):
@@ -71,9 +72,9 @@ In contrast, hash-based solutions offer a viable alternative by circumventing th
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | 935.658 | 1184.46 |
-| [glaze](https://github.com/stephenberry/glaze) | 897.559 | 1159.43 |
-| [simdjson](https://github.com/simdjson/simdjson) | 260.219 | N/A |
+| [glaze](https://github.com/stephenberry/glaze) | 793.57 | 976.905 |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | 759.574 | 968.011 |
+| [simdjson](https://github.com/simdjson/simdjson) | 201.347 | N/A |
 > 200 iterations on a 6 core (Intel i7 8700k)
 
 ### Minify Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData.json):
@@ -85,8 +86,8 @@ alt="MinifyCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | N/A | 1689.5 |
-| [simdjson](https://github.com/simdjson/simdjson) | N/A | 977.67 |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | N/A | 1426.76 |
+| [simdjson](https://github.com/simdjson/simdjson) | N/A | 783.304 |
 > 200 iterations on a 6 core (Intel i7 8700k)
 
 ### Prettify Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData-Minified.json):
@@ -98,8 +99,8 @@ alt="PrettifyCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | N/A | 924.033 |
-| [glaze](https://github.com/stephenberry/glaze) | N/A | 281.664 |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | N/A | 671.014 |
+| [glaze](https://github.com/stephenberry/glaze) | N/A | 212.156 |
 > 200 iterations on a 6 core (Intel i7 8700k)
 
 ### Validation Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData.json):
@@ -111,5 +112,5 @@ alt="ValidateCoreAPI WebSite" width="400"/></p>
 
 | Library | Read (MB/s) | Write (MB/s) |
 | ------------------------------------------------- | ---------- | ----------- |
-| [jsonifier](https://github.com/realtimechris/jsonifier) | 1231.56 | N/A |
+| [jsonifier](https://github.com/realtimechris/jsonifier) | 664.259 | N/A |
 > 200 iterations on a 6 core (Intel i7 8700k)
