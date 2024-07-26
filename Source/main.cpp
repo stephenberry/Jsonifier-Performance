@@ -1,27 +1,57 @@
 #if defined(JSONIFIER_CPU_INSTRUCTIONS)
 //#undef JSONIFIER_CPU_INSTRUCTIONS
-//#define JSONIFIER_CPU_INSTRUCTIONS (JSONIFIER_AVX | JSONIFIER_POPCNT | JSONIFIER_BMI | JSONIFIER_BMI2 | JSONIFIER_LZCNT)
+//#define JSONIFIER_CPU_INSTRUCTIONS (JSONIFIER_AVX2 | JSONIFIER_POPCNT)
 #endif
-#include "glaze/core/macros.hpp"
-#include "glaze/glaze.hpp"
+#include "UnicodeEmoji.hpp"
+#include <BnchSwt/BenchmarkSuite.hpp>
 #include <jsonifier/Index.hpp>
+#include "glaze/glaze.hpp"
 #include <unordered_set>
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
 #include <iostream>
+#include <random>
+#include <thread>
 #include <chrono>
 
-struct search_metadata {
-	std::string nextResults{};
-	std::string sinceIdStr{};
-	std::string refreshUrl{};
-	std::string maxIdStr{};
-	double completedIn{};
+constexpr bnch_swt::string_literal jsonifierLibraryName{ "jsonifier" };
+constexpr bnch_swt::string_literal simdjsonLibraryName{ "simdjson" };
+constexpr bnch_swt::string_literal glazeLibraryName{ "glaze" };
+constexpr bnch_swt::string_literal jsonifierCommitUrl{ bnch_swt::joinLiterals<"https://github.com/RealTimeChris/Jsonifier/commit/", JSONIFIER_COMMIT>() };
+constexpr bnch_swt::string_literal simdjsonCommitUrl{ bnch_swt::joinLiterals<"https://github.com/simdjson/simdjson/commit/", SIMDJSON_COMMIT>() };
+constexpr bnch_swt::string_literal glazeCommitUrl{ bnch_swt::joinLiterals<"https://github.com/stephenberry/glaze/commit/", GLAZE_COMMIT>() };
+
+struct geometry_data {
+	std::vector<std::vector<std::vector<double>>> coordinates{};
+	std::string type{};
+};
+
+struct properties_data {
+	std::string name{};
+};
+
+struct feature {
+	properties_data properties{};
+	geometry_data geometry{};
+	std::string type{};
+};
+
+struct canada_message {
+	std::vector<feature> features{};
+	std::string type{};
+};
+
+struct search_metadata_data {
+	std::string since_id_str{};
+	std::string next_results{};
+	std::string refresh_url{};
+	std::string max_id_str{};
+	double completed_in{};
 	std::string query{};
-	int64_t sinceId{};
+	int64_t since_id{};
 	int64_t count{};
-	double maxId{};
+	double max_id{};
 };
 
 struct hashtag {
@@ -29,629 +59,799 @@ struct hashtag {
 	std::string text{};
 };
 
-struct large {
+struct large_data {
 	std::string resize{};
 	int64_t w{};
 	int64_t h{};
 };
 
-struct sizes {
-	large largeVal{};
-	large medium{};
-	large thumb{};
-	large small{};
+struct sizes_data {
+	large_data medium{};
+	large_data small{};
+	large_data thumb{};
+	large_data large{};
 };
 
-struct media {
-	std::string sourceStatusIdStr{};
+struct media_data {
+	std::optional<std::string> source_status_id_str{};
+	std::optional<double> source_status_id{};
 	std::vector<int64_t> indices{};
-	std::string mediaUrlHttps{};
-	std::string expandedUrl{};
-	std::string displayUrl{};
-	double sourceStatusId{};
-	std::string mediaUrl{};
-	std::string idStr{};
+	std::string media_url_https{};
+	std::string expanded_url{};
+	std::string display_url{};
+	std::string media_url{};
+	std::string id_str{};
 	std::string type{};
+	sizes_data sizes{};
 	std::string url{};
-	sizes sizesVal{};
 	double id{};
 };
 
-struct url {
+struct url_data {
 	std::vector<int64_t> indices{};
-	std::string expandedUrl{};
-	std::string displayUrl{};
-	std::string urlVal{};
+	std::string expanded_url{};
+	std::string display_url{};
+	std::string url{};
 };
 
 struct user_mention {
 	std::vector<int64_t> indices{};
-	std::string screenName{};
-	std::string idStr{};
+	std::string screen_name{};
+	std::string id_str{};
 	std::string name{};
 	int64_t id{};
 };
 
 struct status_entities {
-	std::vector<user_mention> userMentions{};
-	std::vector<std::string> symbols{};
+	std::optional<std::vector<media_data>> media{};
+	std::vector<user_mention> user_mentions{};
+	std::vector<std::nullptr_t> symbols{};
 	std::vector<hashtag> hashtags{};
-	std::vector<media> mediaVal{};
-	std::vector<url> urls{};
+	std::vector<url_data> urls{};
 };
 
-struct metadata {
-	std::string isoLanguageCode{};
-	std::string resultType{};
+struct metadata_data {
+	std::string iso_language_code{};
+	std::string result_type{};
 };
 
-struct description {
-	std::vector<url> urls{};
+struct description_data {
+	std::vector<url_data> urls{};
 };
 
 struct user_entities {
-	description descriptionVal{};
-	description url{};
+	std::optional<description_data> url{};
+	description_data description{};
 };
 
-struct user {
-	std::string profileBackgroundImageUrlHttps{};
-	std::string profileBackgroundImageUrl{};
-	std::string profileSidebarBorderColor{};
-	std::string profileSidebarFillColor{};
-	std::string profileBackgroundColor{};
-	std::string profileImageUrlHttps{};
-	bool profileUseBackgroundImage{};
-	std::string profileBannerUrl{};
-	std::string profileLinkColor{};
-	std::string profileTextColor{};
-	std::string profileImageUrl{};
-	bool profileBackgroundTile{};
-	bool isTranslationEnabled{};
-	bool contributorsEnabled{};
-	bool defaultProfileImage{};
+struct twitter_user {
+	std::string profile_background_image_url_https{};
+	std::optional<std::string> profile_banner_url{};
+	std::string profile_sidebar_border_color{};
+	std::string profile_background_image_url{};
+	std::string profile_sidebar_fill_color{};
+	std::optional<std::string> time_zone{};
+	std::string profile_background_color{};
+	std::string profile_image_url_https{};
+	std::optional<int64_t> utc_offset{};
+	bool profile_use_background_image{};
+	std::optional<std::string> url{};
+	std::string profile_text_color{};
+	std::string profile_link_color{};
+	std::string profile_image_url{};
+	bool profile_background_tile{};
+	bool is_translation_enabled{};
+	bool default_profile_image{};
+	bool contributors_enabled{};
+	bool follow_request_sent{};
+	int64_t favourites_count{};
 	std::string description{};
-	int64_t favouritesCount{};
-	std::string screenName{};
+	std::string screen_name{};
+	int64_t followers_count{};
+	int64_t statuses_count{};
+	std::string created_at{};
 	user_entities entities{};
-	int64_t followersCount{};
-	bool followRequestSent{};
-	std::string createdAt{};
-	int64_t statusesCount{};
+	int64_t friends_count{};
+	bool default_profile{};
+	int64_t listed_count{};
 	std::string location{};
-	int64_t friendsCount{};
-	std::string timeZone{};
-	int64_t listedCount{};
-	bool defaultProfile{};
-	bool userProtected{};
+	bool user_protected{};
+	bool is_translator{};
+	std::string id_str{};
 	bool notifications{};
-	std::string idStr{};
-	int64_t utcOffset{};
-	bool isTranslator{};
+	std::string string{};
 	std::string name{};
+	bool geo_enabled{};
 	std::string lang{};
-	std::string url{};
-	bool geoEnabled{};
 	bool following{};
 	bool verified{};
 	int64_t id{};
 };
 
-struct status {
-	std::string inReplyToStatusIdStr{};
-	std::string inReplyToScreenName{};
-	std::string inReplyToUserIdStr{};
-	double inReplyToStatusId{};
-	std::string contributors{};
+struct retweeted_status_data {
+	std::optional<std::string> in_reply_to_status_id_str{};
+	std::optional<std::string> in_reply_to_user_id_str{};
+	std::optional<std::string> in_reply_to_screen_name{};
+	std::optional<double> in_reply_to_status_id{};
+	std::optional<int64_t> in_reply_to_user_id{};
+	std::optional<bool> possibly_sensitive{};
+	std::nullptr_t contributors{ nullptr };
+	std::nullptr_t coordinates{ nullptr };
+	std::nullptr_t place{ nullptr };
+	std::nullptr_t geo{ nullptr };
 	status_entities entities{};
-	int64_t inReplyToUserId{};
-	std::string coordinates{};
-	bool possiblySensitive{};
-	std::string createdAt{};
-	int64_t favoriteCount{};
-	metadata metadataVal{};
-	int64_t retweetCount{};
+	int64_t favorite_count{};
+	metadata_data metadata{};
+	std::string created_at{};
+	int64_t retweet_count{};
 	std::string source{};
-	std::string idStr{};
-	std::string place{};
-	std::string text{};
+	std::string id_str{};
+	twitter_user user{};
 	std::string lang{};
-	std::string geo{};
+	std::string text{};
 	bool truncated{};
 	bool favorited{};
 	bool retweeted{};
-	user userVal{};
+	double id{};
+};
+
+struct status_data {
+	std::optional<retweeted_status_data> retweeted_status{};
+	std::optional<std::string> in_reply_to_status_id_str{};
+	std::optional<std::string> in_reply_to_user_id_str{};
+	std::optional<std::string> in_reply_to_screen_name{};
+	std::optional<double> in_reply_to_status_id{};
+	std::optional<int64_t> in_reply_to_user_id{};
+	std::optional<bool> possibly_sensitive{};
+	std::nullptr_t contributors{ nullptr };
+	std::nullptr_t coordinates{ nullptr };
+	std::nullptr_t place{ nullptr };
+	std::nullptr_t geo{ nullptr };
+	status_entities entities{};
+	int64_t favorite_count{};
+	metadata_data metadata{};
+	std::string created_at{};
+	int64_t retweet_count{};
+	std::string source{};
+	std::string id_str{};
+	twitter_user user{};
+	std::string lang{};
+	std::string text{};
+	bool truncated{};
+	bool favorited{};
+	bool retweeted{};
 	double id{};
 };
 
 struct twitter_message {
-	search_metadata searchMetadata{};
-	std::vector<status> statuses{};
+	search_metadata_data search_metadata{};
+	std::vector<status_data> statuses{};
 };
 
-class user_data {
-  public:
-	std::string avatarDecoration{};
-	std::string discriminator{};
-	std::string globalName{};
-	std::string userName{};
-	uint64_t accentColor{};
-	uint64_t premiumType{};
-	uint64_t publicFlags{};
-	std::string locale{};
-	std::string banner{};
-	std::string avatar{};
-	std::string email{};
-	bool mfaEnabled{};
+struct icon_emoji_data {
+	std::optional<std::string> name{};
+	std::nullptr_t id{ nullptr };
+};
+
+struct permission_overwrite {
+	std::string allow{};
+	std::string deny{};
 	std::string id{};
-	uint64_t flags{};
+	int64_t type{};
+};
+
+struct channel_data {
+	std::vector<permission_overwrite> permission_overwrites{};
+	std::optional<std::string> last_message_id{};
+	int64_t default_thread_rate_limit_per_user{};
+	std::vector<std::nullptr_t> applied_tags{};
+	std::vector<std::nullptr_t> recipients{};
+	int64_t default_auto_archive_duration{};
+	std::nullptr_t status{ nullptr };
+	std::string last_pin_timestamp{};
+	std::nullptr_t topic{ nullptr };
+	int64_t rate_limit_per_user{};
+	icon_emoji_data icon_emoji{};
+	int64_t total_message_sent{};
+	int64_t video_quality_mode{};
+	std::string application_id{};
+	std::string permissions{};
+	int64_t message_count{};
+	std::string parent_id{};
+	int64_t member_count{};
+	std::string owner_id{};
+	std::string guild_id{};
+	int64_t user_limit{};
+	int64_t position{};
+	std::string name{};
+	std::string icon{};
+	int64_t version{};
+	int64_t bitrate{};
+	std::string id{};
+	int64_t flags{};
+	int64_t type{};
+	bool managed{};
+	bool nsfw{};
+};
+
+struct user_data {
+	std::nullptr_t avatar_decoration_data{ nullptr };
+	std::optional<std::string> display_name{};
+	std::optional<std::string> global_name{};
+	std::optional<std::string> avatar{};
+	std::nullptr_t banner{ nullptr };
+	std::nullptr_t locale{ nullptr };
+	std::string discriminator{};
+	std::string user_name{};
+	int64_t accent_color{};
+	int64_t premium_type{};
+	int64_t public_flags{};
+	std::string email{};
+	bool mfa_enabled{};
+	std::string id{};
+	int64_t flags{};
 	bool verified{};
 	bool system{};
 	bool bot{};
 };
 
-class guild_scheduled_event_data {
-  public:
-	std::string scheduledStartTime{};
-	std::string scheduledEndTime{};
-	std::string description{};
-	uint64_t entityMetadata{};
-	std::string creatorId{};
-	std::string channelId{};
-	uint64_t privacyLevel{};
-	std::string entityId{};
-	std::string guildId{};
-	uint64_t entityType{};
-	uint64_t userCount{};
-	user_data creator{};
-	std::string name{};
-	uint64_t status{};
-	std::string id{};
-};
-
-class role_data {
-  public:
-	std::string unicodeEmoji{};
-	std::string permissions{};
-	uint64_t position{};
-	std::string name{};
-	std::string icon{};
-	bool mentionable{};
-	uint64_t color{};
-	std::string id{};
-	uint64_t flags{};
-	bool managed{};
-	bool hoist{};
-};
-
-class channel_data {
-  public:
-	uint64_t defaultThreadRateLimitPerUser{};
-	std::vector<std::string> appliedTags{};
-	uint64_t defaultAutoArchiveDuration{};
-	std::vector<user_data> recipients{};
-	std::string lastPinTimestamp{};
-	uint64_t totalMessageSent{};
-	uint64_t rateLimitPerUser{};
-	uint64_t videoQualityMode{};
-	std::string lastMessageId{};
-	std::string applicationId{};
-	std::string permissions{};
-	std::string rtcRegion{};
-	uint64_t messageCount{};
-	uint64_t memberCount{};
-	std::string parentId{};
-	std::string ownerId{};
-	std::string guildId{};
-	uint64_t userLimit{};
-	std::string topic{};
-	uint64_t position{};
-	uint64_t bitrate{};
-	std::string name{};
-	std::string icon{};
-	std::string id{};
-	uint64_t flags{};
-	uint64_t type{};
-	bool managed{};
-	bool nsfw{};
-};
-
-class guild_member_data {
-  public:
-	std::string communicationDisabledUntil{};
+struct member_data {
+	std::nullptr_t communication_disabled_until{ nullptr };
+	std::nullptr_t premium_since{ nullptr };
+	std::optional<std::string> nick{};
+	std::nullptr_t avatar{ nullptr };
 	std::vector<std::string> roles{};
-	std::string premiumSince{};
 	std::string permissions{};
-	std::string joinedAt{};
-	std::string guildId{};
-	std::string avatar{};
-	std::string nick{};
+	std::string joined_at{};
+	std::string guild_id{};
 	user_data user{};
-	uint64_t flags{};
+	int64_t flags{};
 	bool pending{};
 	bool deaf{};
 	bool mute{};
 };
 
-class guild_data {
-  public:
-	std::vector<guild_scheduled_event_data> guildScheduledEvents{};
-	std::vector<guild_member_data> members{};
-	uint64_t defaultMessageNotifications{};
-	std::vector<channel_data> channels{};
-	uint64_t maxStageVideoChannelUsers{};
-	std::string publicUpdatesChannelId{};
-	uint64_t premiumSubscriptionCount{};
-	std::vector<std::string> features{};
-	uint64_t approximatePresenceCount{};
-	std::string safetyAlertsChannelId{};
-	uint64_t approximateMemberCount{};
-	bool premiumProgressBarEnabled{};
-	uint64_t explicitContentFilter{};
-	uint64_t maxVideoChannelUsers{};
-	std::vector<role_data> roles{};
-	std::string systemChannelId{};
-	std::string widgetChannelId{};
-	std::string preferredLocale{};
-	std::string discoverySplash{};
-	uint64_t systemChannelFlags{};
-	std::string rulesChannelId{};
-	uint64_t verificationLevel{};
-	std::string applicationId{};
-	std::string vanityUrlCode{};
-	std::string afkChannelId{};
-	std::string description{};
+struct tags_data {
+	std::nullptr_t premium_subscriber{ nullptr };
+	std::optional<std::string> bot_id{};
+};
+
+struct role_data {
+	std::nullptr_t unicode_emoji{ nullptr };
+	std::nullptr_t icon{ nullptr };
 	std::string permissions{};
-	uint64_t maxPresences{};
+	int64_t position{};
+	std::string name{};
+	bool mentionable{};
+	int64_t version{};
+	std::string id{};
+	tags_data tags{};
+	int64_t color{};
+	int64_t flags{};
+	bool managed{};
+	bool hoist{};
+};
+
+struct guild_data {
+	std::nullptr_t latest_on_boarding_question_id{ nullptr };
+	std::vector<std::nullptr_t> guild_scheduled_events{};
+	std::nullptr_t safety_alerts_channel_id{ nullptr };
+	std::nullptr_t inventory_settings{ nullptr };
+	std::vector<std::nullptr_t> voice_states{};
+	std::nullptr_t discovery_splash{ nullptr };
+	std::nullptr_t vanity_url_code{ nullptr };
+	std::nullptr_t application_id{ nullptr };
+	std::nullptr_t afk_channel_id{ nullptr };
+	int64_t default_message_notifications{};
+	int64_t max_stage_video_channel_users{};
+	std::string public_updates_channel_id{};
+	std::nullptr_t description{ nullptr };
+	std::vector<std::nullptr_t> threads{};
+	std::vector<channel_data> channels{};
+	int64_t premium_subscription_count{};
+	int64_t approximate_presence_count{};
+	std::vector<std::string> features{};
+	std::vector<std::string> stickers{};
+	bool premium_progress_bar_enabled{};
+	std::vector<member_data> members{};
+	std::nullptr_t hub_type{ nullptr };
+	int64_t approximate_member_count{};
+	int64_t explicit_content_filter{};
+	int64_t max_video_channel_users{};
+	std::nullptr_t splash{ nullptr };
+	std::nullptr_t banner{ nullptr };
+	std::string system_channel_id{};
+	std::string widget_channel_id{};
+	std::string preferred_locale{};
+	int64_t system_channel_flags{};
+	std::string rules_channel_id{};
+	std::vector<role_data> roles{};
+	int64_t verification_level{};
+	std::string permissions{};
+	int64_t max_presences{};
 	std::string discovery{};
-	uint64_t memberCount{};
-	std::string joinedAt{};
-	uint64_t premiumTier{};
-	std::string ownerId{};
-	uint64_t maxMembers{};
-	uint64_t afkTimeout{};
-	std::string splash{};
-	std::string banner{};
-	bool widgetEnabled{};
-	uint64_t nsfwLevel{};
-	uint64_t mfaLevel{};
+	std::string joined_at{};
+	int64_t member_count{};
+	int64_t premium_tier{};
+	std::string owner_id{};
+	int64_t max_members{};
+	int64_t afk_timeout{};
+	bool widget_enabled{};
+	std::string region{};
+	int64_t nsfw_level{};
+	int64_t mfa_level{};
 	std::string name{};
 	std::string icon{};
 	bool unavailable{};
 	std::string id{};
-	uint64_t flags{};
+	int64_t flags{};
 	bool large{};
 	bool owner{};
+	bool nsfw{};
+	bool lazy{};
 };
 
 struct discord_message {
 	std::string t{};
 	guild_data d{};
-	uint64_t op{};
-	uint64_t s{};
+	int64_t op{};
+	int64_t s{};
 };
 
-template<> struct jsonifier::core<search_metadata> {
-	using value_type = search_metadata;
-	static constexpr auto parseValue =
-		createValue("completed_in", &value_type::completedIn, "max_id", &value_type::maxId, "max_id_str", &value_type::maxIdStr, "next_results", &value_type::nextResults, "query",
-			&value_type::query, "refresh_url", &value_type::refreshUrl, "count", &value_type::count, "since_id", &value_type::sinceId, "since_id_str", &value_type::sinceIdStr);
+template<> struct jsonifier::core<geometry_data> {
+	using value_type				 = geometry_data;
+	static constexpr auto parseValue = createValue<&value_type::coordinates, &value_type::type>();
+};
+
+template<> struct jsonifier::core<properties_data> {
+	using value_type				 = properties_data;
+	static constexpr auto parseValue = createValue<&value_type::name>();
+};
+
+template<> struct jsonifier::core<feature> {
+	using value_type				 = feature;
+	static constexpr auto parseValue = createValue<&value_type::properties, &value_type::geometry, &value_type::type>();
+};
+
+template<> struct jsonifier::core<canada_message> {
+	using value_type				 = canada_message;
+	static constexpr auto parseValue = createValue<&value_type::features, &value_type::type>();
+};
+
+#if !defined(ASAN)
+
+template<> struct glz::meta<geometry_data> {
+	using value_type			= geometry_data;
+	static constexpr auto value = object("coordinates", &value_type::coordinates, "type", &value_type::type);
+};
+
+template<> struct glz::meta<properties_data> {
+	using value_type			= properties_data;
+	static constexpr auto value = object("name", &value_type::name);
+};
+
+template<> struct glz::meta<feature> {
+	using value_type			= feature;
+	static constexpr auto value = object("properties", &value_type::properties, "geometry", &value_type::geometry, "type", &value_type::type);
+};
+
+template<> struct glz::meta<canada_message> {
+	using value_type			= canada_message;
+	static constexpr auto value = object("features", &value_type::features, "type", &value_type::type);
+};
+
+#endif
+
+template<> struct jsonifier::core<search_metadata_data> {
+	using value_type				 = search_metadata_data;
+	static constexpr auto parseValue = createValue<&value_type::since_id_str, &value_type::next_results, &value_type::refresh_url, &value_type::max_id_str,
+		&value_type::completed_in, &value_type::query, &value_type::since_id, &value_type::count, &value_type::max_id>();
 };
 
 template<> struct jsonifier::core<hashtag> {
 	using value_type				 = hashtag;
-	static constexpr auto parseValue = createValue("text", &value_type::text, "indices", &value_type::indices);
+	static constexpr auto parseValue = createValue<&value_type::indices, &value_type::text>();
 };
 
-template<> struct jsonifier::core<large> {
-	using value_type				 = large;
-	static constexpr auto parseValue = createValue("w", &value_type::w, "h", &value_type::h, "resize", &value_type::resize);
+template<> struct jsonifier::core<large_data> {
+	using value_type				 = large_data;
+	static constexpr auto parseValue = createValue<&value_type::resize, &value_type::w, &value_type::h>();
 };
 
-template<> struct jsonifier::core<sizes> {
-	using value_type				 = sizes;
-	static constexpr auto parseValue = createValue("medium", &value_type::medium, "small", &value_type::small, "thumb", &value_type::thumb, "large", &value_type::largeVal);
+template<> struct jsonifier::core<sizes_data> {
+	using value_type				 = sizes_data;
+	static constexpr auto parseValue = createValue<&value_type::medium, &value_type::small, &value_type::thumb, &value_type::large>();
 };
 
-template<> struct jsonifier::core<media> {
-	using value_type				 = media;
-	static constexpr auto parseValue = createValue("id", &value_type::id, "id_str", &value_type::idStr, "indices", &value_type::indices, "media_url", &value_type::mediaUrl,
-		"media_url_https", &value_type::mediaUrlHttps, "display_url", &value_type::displayUrl, "expanded_url", &value_type::expandedUrl, "type", &value_type::type, "sizes",
-		&value_type::sizesVal, "source_status_id", &value_type::sourceStatusId, "source_status_id_str", &value_type::sourceStatusIdStr);
+template<> struct jsonifier::core<media_data> {
+	using value_type = media_data;
+	static constexpr auto parseValue =
+		createValue<&value_type::source_status_id_str, &value_type::source_status_id, &value_type::indices, &value_type::media_url_https, &value_type::expanded_url,
+			&value_type::display_url, &value_type::media_url, &value_type::id_str, &value_type::type, &value_type::sizes, &value_type::url, &value_type::id>();
 };
 
-template<> struct jsonifier::core<url> {
-	using value_type				 = url;
-	static constexpr auto parseValue = createValue("expanded_url", &value_type::expandedUrl, "display_url", &value_type::displayUrl, "indices", &value_type::indices);
+template<> struct jsonifier::core<url_data> {
+	using value_type				 = url_data;
+	static constexpr auto parseValue = createValue<&value_type::indices, &value_type::expanded_url, &value_type::display_url, &value_type::url>();
 };
 
 template<> struct jsonifier::core<user_mention> {
-	using value_type = user_mention;
-	static constexpr auto parseValue =
-		createValue("screen_name", &value_type::screenName, "name", &value_type::name, "id", &value_type::id, "id_str", &value_type::idStr, "indices", &value_type::indices);
+	using value_type				 = user_mention;
+	static constexpr auto parseValue = createValue<&value_type::indices, &value_type::screen_name, &value_type::id_str, &value_type::name, &value_type::id>();
 };
 
 template<> struct jsonifier::core<status_entities> {
 	using value_type				 = status_entities;
-	static constexpr auto parseValue = createValue("hashtags", &value_type::hashtags, "symbols", &value_type::symbols, "urls", &value_type::urls, "user_mentions",
-		&value_type::userMentions, "media", &value_type::mediaVal);
+	static constexpr auto parseValue = createValue<&value_type::media, &value_type::user_mentions, &value_type::symbols, &value_type::hashtags, &value_type::urls>();
 };
 
-template<> struct jsonifier::core<metadata> {
-	using value_type				 = metadata;
-	static constexpr auto parseValue = createValue("result_type", &value_type::resultType, "iso_language_code", &value_type::isoLanguageCode);
+template<> struct jsonifier::core<metadata_data> {
+	using value_type				 = metadata_data;
+	static constexpr auto parseValue = createValue<&value_type::iso_language_code, &value_type::result_type>();
 };
 
-template<> struct jsonifier::core<description> {
-	using value_type				 = description;
-	static constexpr auto parseValue = createValue("urls", &value_type::urls);
+template<> struct jsonifier::core<description_data> {
+	using value_type				 = description_data;
+	static constexpr auto parseValue = createValue<&value_type::urls>();
 };
 
 template<> struct jsonifier::core<user_entities> {
 	using value_type				 = user_entities;
-	static constexpr auto parseValue = createValue("description", &value_type::descriptionVal);
+	static constexpr auto parseValue = createValue<&value_type::url, &value_type::description>();
 };
 
-template<> struct jsonifier::core<user> {
-	using value_type				 = user;
-	static constexpr auto parseValue = createValue("id", &value_type::id, "id_str", &value_type::idStr, "name", &value_type::name, "screen_name", &value_type::screenName,
-		"location", &value_type::location, "description", &value_type::description, "entities", &value_type::entities, "protected", &value_type::userProtected, "followers_count",
-		&value_type::followersCount, "friends_count", &value_type::friendsCount, "listed_count", &value_type::listedCount, "created_at", &value_type::createdAt, "favourites_count",
-		&value_type::favouritesCount, "geo_enabled", &value_type::geoEnabled, "verified", &value_type::verified, "statuses_count", &value_type::statusesCount, "lang",
-		&value_type::lang, "contributors_enabled", &value_type::contributorsEnabled, "is_translator", &value_type::isTranslator, "is_translation_enabled",
-		&value_type::isTranslationEnabled, "profile_background_color", &value_type::profileBackgroundColor, "profile_background_image_url", &value_type::profileBackgroundImageUrl,
-		"profile_background_image_url_https", &value_type::profileBackgroundImageUrlHttps, "profile_background_tile", &value_type::profileBackgroundTile, "profile_image_url",
-		&value_type::profileImageUrl, "profile_image_url_https", &value_type::profileImageUrlHttps, "profile_banner_url", &value_type::profileBannerUrl, "profile_link_color",
-		&value_type::profileLinkColor, "profile_sidebar_border_color", &value_type::profileSidebarBorderColor, "profile_sidebar_fill_color", &value_type::profileSidebarFillColor,
-		"profile_text_color", &value_type::profileTextColor, "profile_use_background_image", &value_type::profileUseBackgroundImage, "default_profile", &value_type::defaultProfile,
-		"default_profile_image", &value_type::defaultProfileImage, "following", &value_type::following, "follow_request_sent", &value_type::followRequestSent, "notifications",
-		&value_type::notifications);
+template<> struct jsonifier::core<twitter_user> {
+	using value_type				 = twitter_user;
+	static constexpr auto parseValue = createValue<&value_type::profile_background_image_url_https, &value_type::profile_banner_url, &value_type::profile_background_image_url,
+		&value_type::profile_sidebar_border_color, &value_type::profile_sidebar_fill_color, &value_type::time_zone, &value_type::profile_background_color,
+		&value_type::profile_image_url_https, &value_type::utc_offset, &value_type::profile_use_background_image, &value_type::url, &value_type::profile_text_color,
+		&value_type::profile_link_color, &value_type::profile_image_url, &value_type::profile_background_tile, &value_type::is_translation_enabled,
+		&value_type::default_profile_image, &value_type::contributors_enabled, &value_type::follow_request_sent, &value_type::favourites_count, &value_type::description,
+		&value_type::screen_name, &value_type::followers_count, &value_type::statuses_count, &value_type::created_at, &value_type::entities, &value_type::friends_count,
+		&value_type::default_profile, &value_type::listed_count, &value_type::location, &value_type::user_protected, &value_type::is_translator, &value_type::id_str,
+		&value_type::notifications, &value_type::string, &value_type::name, &value_type::geo_enabled, &value_type::lang, &value_type::following, &value_type::verified,
+		&value_type::id>();
 };
 
-template<> struct jsonifier::core<status> {
-	using value_type				 = status;
-	static constexpr auto parseValue = createValue("metadata", &value_type::metadataVal, "created_at", &value_type::createdAt, "id", &value_type::id, "id_str", &value_type::idStr,
-		"text", &value_type::text, "source", &value_type::source, "truncated", &value_type::truncated, "user", &value_type::userVal, "retweet_count", &value_type::retweetCount,
-		"favorite_count", &value_type::favoriteCount, "entities", &value_type::entities, "favorited", &value_type::favorited, "retweeted", &value_type::retweeted, "lang",
-		&value_type::lang, "possibly_sensitive", &value_type::possiblySensitive);
+template<> struct jsonifier::core<retweeted_status_data> {
+	using value_type				 = retweeted_status_data;
+	static constexpr auto parseValue = createValue<&value_type::in_reply_to_status_id_str, &value_type::in_reply_to_user_id_str, &value_type::in_reply_to_screen_name,
+		&value_type::in_reply_to_status_id, &value_type::in_reply_to_user_id, &value_type::possibly_sensitive, &value_type::contributors, &value_type::coordinates,
+		&value_type::place, &value_type::geo, &value_type::entities, &value_type::favorite_count, &value_type::metadata, &value_type::created_at, &value_type::retweet_count,
+		&value_type::source, &value_type::id_str, &value_type::user, &value_type::lang, &value_type::text, &value_type::truncated, &value_type::favorited, &value_type::retweeted,
+		&value_type::id>();
+};
+
+template<> struct jsonifier::core<status_data> {
+	using value_type				 = status_data;
+	static constexpr auto parseValue = createValue<&value_type::in_reply_to_status_id_str, &value_type::in_reply_to_user_id_str, &value_type::in_reply_to_screen_name,
+		&value_type::in_reply_to_status_id, &value_type::in_reply_to_user_id, &value_type::possibly_sensitive, &value_type::contributors, &value_type::coordinates,
+		&value_type::retweeted_status, &value_type::place, &value_type::geo, &value_type::entities, &value_type::favorite_count, &value_type::metadata, &value_type::created_at,
+		&value_type::retweet_count, &value_type::source, &value_type::id_str, &value_type::user, &value_type::lang, &value_type::text, &value_type::truncated,
+		&value_type::favorited, &value_type::retweeted, &value_type::id>();
 };
 
 template<> struct jsonifier::core<twitter_message> {
 	using value_type				 = twitter_message;
-	static constexpr auto parseValue = createValue("statuses", &value_type::statuses, "search_metadata", &value_type::searchMetadata);
+	static constexpr auto parseValue = createValue<&value_type::search_metadata, &value_type::statuses>();
 };
+
 #if !defined(ASAN)
-template<> struct glz::meta<search_metadata> {
-	using value_type = search_metadata;
+
+template<> struct glz::meta<search_metadata_data> {
+	using value_type = search_metadata_data;
 	static constexpr auto value =
-		object("completed_in", &value_type::completedIn, "max_id", &value_type::maxId, "max_id_str", &value_type::maxIdStr, "next_results", &value_type::nextResults, "query",
-			&value_type::query, "refresh_url", &value_type::refreshUrl, "count", &value_type::count, "since_id", &value_type::sinceId, "since_id_str", &value_type::sinceIdStr);
+		object("since_id_str", &value_type::since_id_str, "next_results", &value_type::next_results, "refresh_url", &value_type::refresh_url, "max_id_str", &value_type::max_id_str,
+			"completed_in", &value_type::completed_in, "query", &value_type::query, "since_id", &value_type::since_id, "count", &value_type::count, "max_id", &value_type::max_id);
 };
 
 template<> struct glz::meta<hashtag> {
 	using value_type			= hashtag;
-	static constexpr auto value = object("text", &value_type::text, "indices", &value_type::indices);
+	static constexpr auto value = object("indices", &value_type::indices, "text", &value_type::text);
 };
 
-template<> struct glz::meta<large> {
-	using value_type			= large;
-	static constexpr auto value = object("w", &value_type::w, "h", &value_type::h, "resize", &value_type::resize);
+template<> struct glz::meta<large_data> {
+	using value_type			= large_data;
+	static constexpr auto value = object("resize", &value_type::resize, "w", &value_type::w, "h", &value_type::h);
 };
 
-template<> struct glz::meta<sizes> {
-	using value_type			= sizes;
-	static constexpr auto value = object("medium", &value_type::medium, "small", &value_type::small, "thumb", &value_type::thumb, "large", &value_type::largeVal);
+template<> struct glz::meta<sizes_data> {
+	using value_type			= sizes_data;
+	static constexpr auto value = object("medium", &value_type::medium, "small", &value_type::small, "thumb", &value_type::thumb, "large", &value_type::large);
 };
 
-template<> struct glz::meta<media> {
-	using value_type			= media;
-	static constexpr auto value = object("id", &value_type::id, "id_str", &value_type::idStr, "indices", &value_type::indices, "media_url", &value_type::mediaUrl,
-		"media_url_https", &value_type::mediaUrlHttps, "display_url", &value_type::displayUrl, "expanded_url", &value_type::expandedUrl, "type", &value_type::type, "sizes",
-		&value_type::sizesVal, "source_status_id", &value_type::sourceStatusId, "source_status_id_str", &value_type::sourceStatusIdStr);
+template<> struct glz::meta<media_data> {
+	using value_type			= media_data;
+	static constexpr auto value = object("source_status_id_str", &value_type::source_status_id_str, "source_status_id", &value_type::source_status_id, "indices",
+		&value_type::indices, "media_url_https", &value_type::media_url_https, "expanded_url", &value_type::expanded_url, "display_url", &value_type::display_url, "media_url",
+		&value_type::media_url, "id_str", &value_type::id_str, "type", &value_type::type, "sizes", &value_type::sizes, "url", &value_type::url, "id", &value_type::id);
 };
 
-template<> struct glz::meta<url> {
-	using value_type			= url;
-	static constexpr auto value = object("expanded_url", &value_type::expandedUrl, "display_url", &value_type::displayUrl, "indices", &value_type::indices);
+template<> struct glz::meta<url_data> {
+	using value_type = url_data;
+	static constexpr auto value =
+		object("indices", &value_type::indices, "expanded_url", &value_type::expanded_url, "display_url", &value_type::display_url, "url", &value_type::url);
 };
 
 template<> struct glz::meta<user_mention> {
 	using value_type = user_mention;
 	static constexpr auto value =
-		object("screen_name", &value_type::screenName, "name", &value_type::name, "id", &value_type::id, "id_str", &value_type::idStr, "indices", &value_type::indices);
+		object("indices", &value_type::indices, "screen_name", &value_type::screen_name, "id_str", &value_type::id_str, "name", &value_type::name, "id", &value_type::id);
 };
 
 template<> struct glz::meta<status_entities> {
 	using value_type			= status_entities;
-	static constexpr auto value = object("hashtags", &value_type::hashtags, "symbols", &value_type::symbols, "urls", &value_type::urls, "user_mentions", &value_type::userMentions,
-		"media", &value_type::mediaVal);
+	static constexpr auto value = object("media", &value_type::media, "user_mentions", &value_type::user_mentions, "symbols", &value_type::symbols, "hashtags",
+		&value_type::hashtags, "urls", &value_type::urls);
 };
 
-template<> struct glz::meta<metadata> {
-	using value_type			= metadata;
-	static constexpr auto value = object("result_type", &value_type::resultType, "iso_language_code", &value_type::isoLanguageCode);
+template<> struct glz::meta<metadata_data> {
+	using value_type			= metadata_data;
+	static constexpr auto value = object("iso_language_code", &value_type::iso_language_code, "result_type", &value_type::result_type);
 };
 
-template<> struct glz::meta<description> {
-	using value_type			= description;
+template<> struct glz::meta<description_data> {
+	using value_type			= description_data;
 	static constexpr auto value = object("urls", &value_type::urls);
 };
 
 template<> struct glz::meta<user_entities> {
 	using value_type			= user_entities;
-	static constexpr auto value = object("description", &value_type::descriptionVal);
+	static constexpr auto value = object("url", &value_type::url, "description", &value_type::description);
 };
 
-template<> struct glz::meta<user> {
-	using value_type			= user;
-	static constexpr auto value = object("id", &value_type::id, "id_str", &value_type::idStr, "name", &value_type::name, "screen_name", &value_type::screenName, "location",
-		&value_type::location, "description", &value_type::description, "entities", &value_type::entities, "protected", &value_type::userProtected, "followers_count",
-		&value_type::followersCount, "friends_count", &value_type::friendsCount, "listed_count", &value_type::listedCount, "created_at", &value_type::createdAt, "favourites_count",
-		&value_type::favouritesCount, "geo_enabled", &value_type::geoEnabled, "verified", &value_type::verified, "statuses_count", &value_type::statusesCount, "lang",
-		&value_type::lang, "contributors_enabled", &value_type::contributorsEnabled, "is_translator", &value_type::isTranslator, "is_translation_enabled",
-		&value_type::isTranslationEnabled, "profile_background_color", &value_type::profileBackgroundColor, "profile_background_image_url", &value_type::profileBackgroundImageUrl,
-		"profile_background_image_url_https", &value_type::profileBackgroundImageUrlHttps, "profile_background_tile", &value_type::profileBackgroundTile, "profile_image_url",
-		&value_type::profileImageUrl, "profile_image_url_https", &value_type::profileImageUrlHttps, "profile_banner_url", &value_type::profileBannerUrl, "profile_link_color",
-		&value_type::profileLinkColor, "profile_sidebar_border_color", &value_type::profileSidebarBorderColor, "profile_sidebar_fill_color", &value_type::profileSidebarFillColor,
-		"profile_text_color", &value_type::profileTextColor, "profile_use_background_image", &value_type::profileUseBackgroundImage, "default_profile", &value_type::defaultProfile,
-		"default_profile_image", &value_type::defaultProfileImage, "following", &value_type::following, "follow_request_sent", &value_type::followRequestSent, "notifications",
-		&value_type::notifications);
+template<> struct glz::meta<twitter_user> {
+	using value_type			= twitter_user;
+	static constexpr auto value = object("profile_background_image_url_https", &value_type::profile_background_image_url_https, "profile_banner_url",
+		&value_type::profile_banner_url, "profile_background_image_url", &value_type::profile_banner_url, "profile_sidebar_border_color", &value_type::profile_sidebar_border_color,
+		"profile_sidebar_fill_color", &value_type::profile_sidebar_fill_color, "time_zone", &value_type::time_zone, "profile_background_color",
+		&value_type::profile_background_color, "profile_image_url_https", &value_type::profile_image_url_https, "utc_offset", &value_type::utc_offset,
+		"profile_use_background_image", &value_type::profile_use_background_image, "url", &value_type::url, "profile_text_color", &value_type::profile_text_color,
+		"profile_link_color", &value_type::profile_link_color, "profile_image_url", &value_type::profile_image_url, "profile_background_tile", &value_type::profile_background_tile,
+		"is_translation_enabled", &value_type::is_translation_enabled, "default_profile_image", &value_type::default_profile_image, "contributors_enabled",
+		&value_type::contributors_enabled, "follow_request_sent", &value_type::follow_request_sent, "favourites_count", &value_type::favourites_count, "description",
+		&value_type::description, "screen_name", &value_type::screen_name, "followers_count", &value_type::followers_count, "statuses_count", &value_type::statuses_count,
+		"created_at", &value_type::created_at, "entities", &value_type::entities, "friends_count", &value_type::friends_count, "default_profile", &value_type::default_profile,
+		"listed_count", &value_type::listed_count, "location", &value_type::location, "user_protected", &value_type::user_protected, "is_translator", &value_type::is_translator,
+		"id_str", &value_type::id_str, "notifications", &value_type::notifications, "string", &value_type::string, "name", &value_type::name, "geo_enabled",
+		&value_type::geo_enabled, "lang", &value_type::lang, "following", &value_type::following, "verified", &value_type::verified, "id", &value_type::id);
 };
 
-template<> struct glz::meta<status> {
-	using value_type			= status;
-	static constexpr auto value = object("metadata", &value_type::metadataVal, "created_at", &value_type::createdAt, "id", &value_type::id, "id_str", &value_type::idStr, "text",
-		&value_type::text, "source", &value_type::source, "truncated", &value_type::truncated, "user", &value_type::userVal, "retweet_count", &value_type::retweetCount,
-		"favorite_count", &value_type::favoriteCount, "entities", &value_type::entities, "favorited", &value_type::favorited, "retweeted", &value_type::retweeted, "lang",
-		&value_type::lang, "possibly_sensitive", &value_type::possiblySensitive);
+template<> struct glz::meta<retweeted_status_data> {
+	using value_type			= retweeted_status_data;
+	static constexpr auto value = object("in_reply_to_status_id_str", &value_type::in_reply_to_status_id_str, "in_reply_to_user_id_str", &value_type::in_reply_to_user_id_str,
+		"in_reply_to_screen_name", &value_type::in_reply_to_screen_name, "in_reply_to_status_id", &value_type::in_reply_to_status_id, "in_reply_to_user_id",
+		&value_type::in_reply_to_user_id, "possibly_sensitive", &value_type::possibly_sensitive, "contributors", &value_type::contributors, "coordinates", &value_type::coordinates,
+		"place", &value_type::place, "geo", &value_type::geo, "entities", &value_type::entities, "favorite_count", &value_type::favorite_count, "metadata", &value_type::metadata,
+		"created_at", &value_type::created_at, "retweet_count", &value_type::retweet_count, "source", &value_type::source, "id_str", &value_type::id_str, "user", &value_type::user,
+		"lang", &value_type::lang, "text", &value_type::text, "truncated", &value_type::truncated, "favorited", &value_type::favorited, "retweeted", &value_type::retweeted, "id",
+		&value_type::id);
+};
+
+template<> struct glz::meta<status_data> {
+	using value_type			= status_data;
+	static constexpr auto value = object("in_reply_to_status_id_str", &value_type::in_reply_to_status_id_str, "in_reply_to_user_id_str", &value_type::in_reply_to_user_id_str,
+		"in_reply_to_screen_name", &value_type::in_reply_to_screen_name, "in_reply_to_status_id", &value_type::in_reply_to_status_id, "in_reply_to_user_id",
+		&value_type::in_reply_to_user_id, "possibly_sensitive", &value_type::possibly_sensitive, "contributors", &value_type::contributors, "coordinates", &value_type::coordinates,
+		"place", &value_type::place, "geo", &value_type::geo, "entities", &value_type::entities, "favorite_count", &value_type::favorite_count, "metadata", &value_type::metadata,
+		"created_at", &value_type::created_at, "retweeted_status", &value_type::retweeted_status, "retweet_count", &value_type::retweet_count, "source", &value_type::source,
+		"id_str", &value_type::id_str, "user", &value_type::user, "lang", &value_type::lang, "text", &value_type::text, "truncated", &value_type::truncated, "favorited",
+		&value_type::favorited, "retweeted", &value_type::retweeted, "id", &value_type::id);
 };
 
 template<> struct glz::meta<twitter_message> {
 	using value_type			= twitter_message;
-	static constexpr auto value = object("statuses", &value_type::statuses, "search_metadata", &value_type::searchMetadata);
+	static constexpr auto value = object("search_metadata", &value_type::search_metadata, "statuses", &value_type::statuses);
 };
+
 #endif
-template<> struct jsonifier::core<user_data> {
-	using value_type				 = user_data;
-	static constexpr auto parseValue = createValue("id", &value_type::id, "username", &value_type::userName, "discriminator", &value_type::discriminator, "bot", &value_type::bot,
-		"system", &value_type::system, "mfa_enabled", &value_type::mfaEnabled, "accentColor", &value_type::accentColor, "locale", &value_type::locale, "verified",
-		&value_type::verified, "email", &value_type::email, "flags", &value_type::flags, "premium_type", &value_type::premiumType, "public_flags", &value_type::publicFlags,
-		"avatar_decoration", &value_type::avatarDecoration);
+
+template<> struct jsonifier::core<icon_emoji_data> {
+	using value_type				 = icon_emoji_data;
+	static constexpr auto parseValue = createValue<&value_type::name, &value_type::id>();
 };
 
-template<> struct jsonifier::core<role_data> {
-	using value_type				 = role_data;
-	static constexpr auto parseValue = createValue("id", &value_type::id, "name", &value_type::name, "color", &value_type::color, "hoist", &value_type::hoist, "position",
-		&value_type::position, "permissions", &value_type::permissions, "managed", &value_type::managed, "mentionable", &value_type::mentionable, "flags", &value_type::flags);
-};
-
-template<> struct jsonifier::core<guild_member_data> {
-	using value_type				 = guild_member_data;
-	static constexpr auto parseValue = createValue("user", &value_type::user, "roles", &value_type::roles, "joined_at", &value_type::joinedAt, "deaf", &value_type::deaf, "mute",
-		&value_type::mute, "flags", &value_type::flags, "pending", &value_type::pending, "permissions", &value_type::permissions, "guild_id", &value_type::guildId);
+template<> struct jsonifier::core<permission_overwrite> {
+	using value_type				 = permission_overwrite;
+	static constexpr auto parseValue = createValue<&value_type::allow, &value_type::deny, &value_type::id, &value_type::type>();
 };
 
 template<> struct jsonifier::core<channel_data> {
 	using value_type				 = channel_data;
-	static constexpr auto parseValue = createValue("default_thread_rate_limit_per_user", &value_type::defaultThreadRateLimitPerUser, "applied_tags", &value_type::appliedTags,
-		"default_auto_archive_duration", &value_type::defaultAutoArchiveDuration, "recipients", &value_type::recipients, "last_pin_timestamp", &value_type::lastPinTimestamp,
-		"total_message_sent", &value_type::totalMessageSent, "rate_limit_per_user", &value_type::rateLimitPerUser, "video_quality_mode", &value_type::videoQualityMode,
-		"permissions", &value_type::permissions, "message_count", &value_type::messageCount, "owner_id", &value_type::ownerId, "member_count", &value_type::memberCount, "flags",
-		&value_type::flags, "user_limit", &value_type::userLimit, "type", &value_type::type, "guild_id", &value_type::guildId, "position", &value_type::position, "name",
-		&value_type::name, "bitrate", &value_type::bitrate, "id", &value_type::id, "managed", &value_type::managed, "nsfw", &value_type::nsfw);
+	static constexpr auto parseValue = createValue<&value_type::permission_overwrites, &value_type::last_message_id, &value_type::default_thread_rate_limit_per_user,
+		&value_type::applied_tags, &value_type::recipients, &value_type::default_auto_archive_duration, &value_type::status, &value_type::last_pin_timestamp, &value_type::topic,
+		&value_type::rate_limit_per_user, &value_type::icon_emoji, &value_type::total_message_sent, &value_type::video_quality_mode, &value_type::application_id,
+		&value_type::permissions, &value_type::message_count, &value_type::parent_id, &value_type::member_count, &value_type::owner_id, &value_type::guild_id,
+		&value_type::user_limit, &value_type::position, &value_type::name, &value_type::icon, &value_type::version, &value_type::bitrate, &value_type::id, &value_type::flags,
+		&value_type::type, &value_type::managed, &value_type::nsfw>();
 };
 
-template<> struct jsonifier::core<guild_scheduled_event_data> {
-	using value_type				 = guild_scheduled_event_data;
-	static constexpr auto parseValue = createValue("id", &value_type::id, "privacy_level", &value_type::privacyLevel, "entity_metadata", &value_type::entityMetadata, "entity_type",
-		&value_type::entityType, "status", &value_type::status, "scheduled_start_time", &value_type::scheduledStartTime, "scheduled_end_time", &value_type::scheduledEndTime,
-		"creator_id", &value_type::creatorId, "channel_id", &value_type::channelId, "entity_id", &value_type::entityId, "user_count", &value_type::userCount, "guild_id",
-		&value_type::guildId, "creator", &value_type::creator, "name", &value_type::name);
+template<> struct jsonifier::core<user_data> {
+	using value_type = user_data;
+	static constexpr auto parseValue =
+		createValue<&value_type::avatar_decoration_data, &value_type::display_name, &value_type::global_name, &value_type::avatar, &value_type::banner, &value_type::locale,
+			&value_type::discriminator, &value_type::user_name, &value_type::accent_color, &value_type::premium_type, &value_type::public_flags, &value_type::email,
+			&value_type::mfa_enabled, &value_type::id, &value_type::flags, &value_type::verified, &value_type::system, &value_type::bot>();
+};
+
+template<> struct jsonifier::core<member_data> {
+	using value_type = member_data;
+	static constexpr auto parseValue =
+		createValue<&value_type::communication_disabled_until, &value_type::premium_since, &value_type::nick, &value_type::avatar, &value_type::roles, &value_type::permissions,
+			&value_type::joined_at, &value_type::guild_id, &value_type::user, &value_type::flags, &value_type::pending, &value_type::deaf, &value_type::mute>();
+};
+
+template<> struct jsonifier::core<tags_data> {
+	using value_type				 = tags_data;
+	static constexpr auto parseValue = createValue<&value_type::premium_subscriber, &value_type::bot_id>();
+};
+
+template<> struct jsonifier::core<role_data> {
+	using value_type				 = role_data;
+	static constexpr auto parseValue = createValue<&value_type::unicode_emoji, &value_type::icon, &value_type::permissions, &value_type::position, &value_type::name,
+		&value_type::mentionable, &value_type::version, &value_type::id, &value_type::tags, &value_type::color, &value_type::flags, &value_type::managed, &value_type::hoist>();
 };
 
 template<> struct jsonifier::core<guild_data> {
 	using value_type				 = guild_data;
-	static constexpr auto parseValue = createValue("default_message_notifications", &value_type::defaultMessageNotifications, "guild_scheduled_events",
-		&value_type::guildScheduledEvents, "explicit_content_filter", &value_type::explicitContentFilter, "system_channel_flags", &value_type::systemChannelFlags, "widget_enabled",
-		&value_type::widgetEnabled, "unavailable", &value_type::unavailable, "owner", &value_type::owner, "large", &value_type::large, "member_count", &value_type::memberCount,
-		"verification_level", &value_type::verificationLevel, "id", &value_type::id, "channels", &value_type::channels, "roles", &value_type::roles, "members",
-		&value_type::members, "owner_id", &value_type::ownerId, "permissions", &value_type::permissions, "features", &value_type::features, "max_stage_video_channel_users",
-		&value_type::maxStageVideoChannelUsers, "premium_subscription_count", &value_type::premiumSubscriptionCount, "approximate_presence_count",
-		&value_type::approximatePresenceCount, "approximate_member_count", &value_type::approximateMemberCount, "premium_progress_bar_enabled",
-		&value_type::premiumProgressBarEnabled, "max_video_channel_users", &value_type::maxVideoChannelUsers, "preferred_locale", &value_type::preferredLocale, "system_channel_id",
-		&value_type::systemChannelId, "widget_channel_id", &value_type::widgetChannelId, "nsfw_level", &value_type::nsfwLevel, "premium_tier", &value_type::premiumTier,
-		"afk_timeout", &value_type::afkTimeout, "max_members", &value_type::maxMembers, "mfa_level", &value_type::mfaLevel, "name", &value_type::name, "icon", &value_type::icon);
+	static constexpr auto parseValue = createValue<&value_type::latest_on_boarding_question_id, &value_type::guild_scheduled_events, &value_type::safety_alerts_channel_id,
+		&value_type::inventory_settings, &value_type::voice_states, &value_type::discovery_splash, &value_type::vanity_url_code, &value_type::application_id,
+		&value_type::afk_channel_id, &value_type::default_message_notifications, &value_type::max_stage_video_channel_users, &value_type::public_updates_channel_id,
+		&value_type::description, &value_type::threads, &value_type::channels, &value_type::premium_subscription_count, &value_type::approximate_presence_count,
+		&value_type::features, &value_type::stickers, &value_type::premium_progress_bar_enabled, &value_type::members, &value_type::hub_type, &value_type::approximate_member_count,
+		&value_type::explicit_content_filter, &value_type::max_video_channel_users, &value_type::splash, &value_type::banner, &value_type::system_channel_id,
+		&value_type::widget_channel_id, &value_type::preferred_locale, &value_type::system_channel_flags, &value_type::rules_channel_id, &value_type::roles,
+		&value_type::verification_level, &value_type::permissions, &value_type::max_presences, &value_type::discovery, &value_type::joined_at, &value_type::member_count,
+		&value_type::premium_tier, &value_type::owner_id, &value_type::max_members, &value_type::afk_timeout, &value_type::widget_enabled, &value_type::region,
+		&value_type::nsfw_level, &value_type::mfa_level, &value_type::name, &value_type::icon, &value_type::unavailable, &value_type::id, &value_type::flags, &value_type::large,
+		&value_type::owner, &value_type::nsfw, &value_type::lazy>();
 };
 
 template<> struct jsonifier::core<discord_message> {
-	using OTy						 = discord_message;
-	static constexpr auto parseValue = createValue("t", &OTy::t, "s", &OTy::s, "op", &OTy::op, "d", &OTy::d);
+	using value_type				 = discord_message;
+	static constexpr auto parseValue = createValue<&value_type::t, &value_type::d, &value_type::op, &value_type::s>();
 };
+
 #if !defined(ASAN)
-template<> struct glz::meta<user_data> {
-	using value_type			= user_data;
-	static constexpr auto value = object("id", &value_type::id, "username", &value_type::userName, "discriminator", &value_type::discriminator, "bot", &value_type::bot, "system",
-		&value_type::system, "mfa_enabled", &value_type::mfaEnabled, "accentColor", &value_type::accentColor, "locale", &value_type::locale, "verified", &value_type::verified,
-		"email", &value_type::email, "flags", &value_type::flags, "premium_type", &value_type::premiumType, "public_flags", &value_type::publicFlags, "avatar_decoration",
-		&value_type::avatarDecoration);
+
+template<> struct glz::meta<icon_emoji_data> {
+	using value_type			= icon_emoji_data;
+	static constexpr auto value = object("name", &value_type::name, "id", &value_type::id);
 };
 
-template<> struct glz::meta<role_data> {
-	using value_type			= role_data;
-	static constexpr auto value = object("id", &value_type::id, "name", &value_type::name, "color", &value_type::color, "hoist", &value_type::hoist, "position",
-		&value_type::position, "permissions", &value_type::permissions, "managed", &value_type::managed, "mentionable", &value_type::mentionable, "flags", &value_type::flags);
-};
-
-template<> struct glz::meta<guild_member_data> {
-	using value_type			= guild_member_data;
-	static constexpr auto value = object("user", &value_type::user, "roles", &value_type::roles, "joined_at", &value_type::joinedAt, "deaf", &value_type::deaf, "mute",
-		&value_type::mute, "flags", &value_type::flags, "pending", &value_type::pending, "permissions", &value_type::permissions, "guild_id", &value_type::guildId);
+template<> struct glz::meta<permission_overwrite> {
+	using value_type			= permission_overwrite;
+	static constexpr auto value = object("allow", &value_type::allow, "deny", &value_type::deny, "id", &value_type::id, "type", &value_type::type);
 };
 
 template<> struct glz::meta<channel_data> {
 	using value_type			= channel_data;
-	static constexpr auto value = object("default_thread_rate_limit_per_user", &value_type::defaultThreadRateLimitPerUser, "applied_tags", &value_type::appliedTags,
-		"default_auto_archive_duration", &value_type::defaultAutoArchiveDuration, "recipients", &value_type::recipients, "last_pin_timestamp", &value_type::lastPinTimestamp,
-		"total_message_sent", &value_type::totalMessageSent, "rate_limit_per_user", &value_type::rateLimitPerUser, "video_quality_mode", &value_type::videoQualityMode,
-		"permissions", &value_type::permissions, "message_count", &value_type::messageCount, "owner_id", &value_type::ownerId, "member_count", &value_type::memberCount, "flags",
-		&value_type::flags, "user_limit", &value_type::userLimit, "type", &value_type::type, "guild_id", &value_type::guildId, "position", &value_type::position, "name",
-		&value_type::name, "bitrate", &value_type::bitrate, "id", &value_type::id, "managed", &value_type::managed, "nsfw", &value_type::nsfw);
+	static constexpr auto value = object("permission_overwrites", &value_type::permission_overwrites, "last_message_id", &value_type::last_message_id,
+		"default_thread_rate_limit_per_user", &value_type::default_thread_rate_limit_per_user, "applied_tags", &value_type::applied_tags, "recipients", &value_type::recipients,
+		"default_auto_archive_duration", &value_type::default_auto_archive_duration, "status", &value_type::status, "last_pin_timestamp", &value_type::last_pin_timestamp, "topic",
+		&value_type::topic, "rate_limit_per_user", &value_type::rate_limit_per_user, "icon_emoji", &value_type::icon_emoji, "total_message_sent", &value_type::total_message_sent,
+		"video_quality_mode", &value_type::video_quality_mode, "application_id", &value_type::application_id, "permissions", &value_type::permissions, "message_count",
+		&value_type::message_count, "parent_id", &value_type::parent_id, "member_count", &value_type::member_count, "owner_id", &value_type::owner_id, "guild_id",
+		&value_type::guild_id, "user_limit", &value_type::user_limit, "position", &value_type::position, "name", &value_type::name, "icon", &value_type::icon, "version",
+		&value_type::version, "bitrate", &value_type::bitrate, "id", &value_type::id, "flags", &value_type::flags, "type", &value_type::type, "managed", &value_type::managed,
+		"nsfw", &value_type::nsfw);
 };
 
-template<> struct glz::meta<guild_scheduled_event_data> {
-	using value_type			= guild_scheduled_event_data;
-	static constexpr auto value = object("id", &value_type::id, "privacy_level", &value_type::privacyLevel, "entity_metadata", &value_type::entityMetadata, "entity_type",
-		&value_type::entityType, "status", &value_type::status, "scheduled_start_time", &value_type::scheduledStartTime, "scheduled_end_time", &value_type::scheduledEndTime,
-		"creator_id", &value_type::creatorId, "channel_id", &value_type::channelId, "entity_id", &value_type::entityId, "user_count", &value_type::userCount, "guild_id",
-		&value_type::guildId, "creator", &value_type::creator, "name", &value_type::name);
+template<> struct glz::meta<user_data> {
+	using value_type			= user_data;
+	static constexpr auto value = object("avatar_decoration_data", &value_type::avatar_decoration_data, "display_name", &value_type::display_name, "global_name",
+		&value_type::global_name, "avatar", &value_type::avatar, "banner", &value_type::banner, "locale", &value_type::locale, "discriminator", &value_type::discriminator,
+		"user_name", &value_type::user_name, "accent_color", &value_type::accent_color, "premium_type", &value_type::premium_type, "public_flags", &value_type::public_flags,
+		"email", &value_type::email, "mfa_enabled", &value_type::mfa_enabled, "id", &value_type::id, "flags", &value_type::flags, "verified", &value_type::verified, "system",
+		&value_type::system, "bot", &value_type::bot);
+};
+
+template<> struct glz::meta<member_data> {
+	using value_type			= member_data;
+	static constexpr auto value = object("communication_disabled_until", &value_type::communication_disabled_until, "premium_since", &value_type::premium_since, "nick",
+		&value_type::nick, "avatar", &value_type::avatar, "roles", &value_type::roles, "permissions", &value_type::permissions, "joined_at", &value_type::joined_at, "guild_id",
+		&value_type::guild_id, "user", &value_type::user, "flags", &value_type::flags, "pending", &value_type::pending, "deaf", &value_type::deaf, "mute", &value_type::mute);
+};
+
+template<> struct glz::meta<tags_data> {
+	using value_type			= tags_data;
+	static constexpr auto value = object("premium_subscriber", &value_type::premium_subscriber, "bot_id", &value_type::bot_id);
+};
+
+template<> struct glz::meta<role_data> {
+	using value_type			= role_data;
+	static constexpr auto value = object("unicode_emoji", &value_type::unicode_emoji, "icon", &value_type::icon, "permissions", &value_type::permissions, "position",
+		&value_type::position, "name", &value_type::name, "mentionable", &value_type::mentionable, "version", &value_type::version, "id", &value_type::id, "tags",
+		&value_type::tags, "color", &value_type::color, "flags", &value_type::flags, "managed", &value_type::managed, "hoist", &value_type::hoist);
 };
 
 template<> struct glz::meta<guild_data> {
 	using value_type			= guild_data;
-	static constexpr auto value = object("default_message_notifications", &value_type::defaultMessageNotifications, "guild_scheduled_events", &value_type::guildScheduledEvents,
-		"explicit_content_filter", &value_type::explicitContentFilter, "system_channel_flags", &value_type::systemChannelFlags, "widget_enabled", &value_type::widgetEnabled,
-		"unavailable", &value_type::unavailable, "owner", &value_type::owner, "large", &value_type::large, "member_count", &value_type::memberCount, "verification_level",
-		&value_type::verificationLevel, "id", &value_type::id, "channels", &value_type::channels, "roles", &value_type::roles, "members", &value_type::members, "owner_id",
-		&value_type::ownerId, "permissions", &value_type::permissions, "features", &value_type::features, "max_stage_video_channel_users", &value_type::maxStageVideoChannelUsers,
-		"premium_subscription_count", &value_type::premiumSubscriptionCount, "approximate_presence_count", &value_type::approximatePresenceCount, "approximate_member_count",
-		&value_type::approximateMemberCount, "premium_progress_bar_enabled", &value_type::premiumProgressBarEnabled, "max_video_channel_users", &value_type::maxVideoChannelUsers,
-		"preferred_locale", &value_type::preferredLocale, "system_channel_id", &value_type::systemChannelId, "widget_channel_id", &value_type::widgetChannelId, "nsfw_level",
-		&value_type::nsfwLevel, "premium_tier", &value_type::premiumTier, "afk_timeout", &value_type::afkTimeout, "max_members", &value_type::maxMembers, "mfa_level",
-		&value_type::mfaLevel, "name", &value_type::name, "icon", &value_type::icon);
+	static constexpr auto value = object("latest_on_boarding_question_id", &value_type::latest_on_boarding_question_id, "guild_scheduled_events",
+		&value_type::guild_scheduled_events, "safety_alerts_channel_id", &value_type::safety_alerts_channel_id, "inventory_settings", &value_type::inventory_settings,
+		"voice_states", &value_type::voice_states, "discovery_splash", &value_type::discovery_splash, "vanity_url_code", &value_type::vanity_url_code, "application_id",
+		&value_type::application_id, "afk_channel_id", &value_type::afk_channel_id, "default_message_notifications", &value_type::default_message_notifications,
+		"max_stage_video_channel_users", &value_type::max_stage_video_channel_users, "public_updates_channel_id", &value_type::public_updates_channel_id, "description",
+		&value_type::description, "threads", &value_type::threads, "channels", &value_type::channels, "premium_subscription_count", &value_type::premium_subscription_count,
+		"approximate_presence_count", &value_type::approximate_presence_count, "features", &value_type::features, "stickers", &value_type::stickers, "premium_progress_bar_enabled",
+		&value_type::premium_progress_bar_enabled, "members", &value_type::members, "hub_type", &value_type::hub_type, "approximate_member_count",
+		&value_type::approximate_member_count, "explicit_content_filter", &value_type::explicit_content_filter, "max_video_channel_users", &value_type::max_video_channel_users,
+		"splash", &value_type::splash, "banner", &value_type::banner, "system_channel_id", &value_type::system_channel_id, "widget_channel_id", &value_type::widget_channel_id,
+		"preferred_locale", &value_type::preferred_locale, "system_channel_flags", &value_type::system_channel_flags, "rules_channel_id", &value_type::rules_channel_id, "roles",
+		&value_type::roles, "verification_level", &value_type::verification_level, "permissions", &value_type::permissions, "max_presences", &value_type::max_presences,
+		"discovery", &value_type::discovery, "joined_at", &value_type::joined_at, "member_count", &value_type::member_count, "premium_tier", &value_type::premium_tier, "owner_id",
+		&value_type::owner_id, "max_members", &value_type::max_members, "afk_timeout", &value_type::afk_timeout, "widget_enabled", &value_type::widget_enabled, "region",
+		&value_type::region, "nsfw_level", &value_type::nsfw_level, "mfa_level", &value_type::mfa_level, "name", &value_type::name, "icon", &value_type::icon, "unavailable",
+		&value_type::unavailable, "id", &value_type::id, "flags", &value_type::flags, "large", &value_type::large, "owner", &value_type::owner, "nsfw", &value_type::nsfw, "lazy",
+		&value_type::lazy);
 };
 
-// Specialization for discord_message
 template<> struct glz::meta<discord_message> {
-	using OTy					= discord_message;
-	static constexpr auto value = object("t", &OTy::t, "s", &OTy::s, "op", &OTy::op, "d", &OTy::d);
+	using value_type			= discord_message;
+	static constexpr auto value = object("t", &value_type::t, "d", &value_type::d, "op", &value_type::op, "s", &value_type::s);
 };
+
 #endif
+
 struct test_struct {
 	std::vector<std::string> testStrings{};
-	jsonifier::vector<bool> testBools{};
 	std::vector<uint64_t> testUints{};
 	std::vector<double> testDoubles{};
 	std::vector<int64_t> testInts{};
+	std::vector<bool> testBools{};
 };
 
-struct json_data {
-	jsonifier::string theData{};
-	std::vector<int32_t> arraySizes{};
+namespace fs = std::filesystem;
+
+class file_loader {
+  public:
+	file_loader(const std::string& filePathNew) {
+		filePath = filePathNew;
+		std::string directory{ filePathNew.substr(0, filePathNew.find_last_of("/")) };
+		if (!fs::exists(directory)) {
+			std::filesystem::create_directories(directory);
+		}
+
+		if (!fs::exists(filePath)) {
+			std::ofstream createFile(filePath.data());
+			createFile.close();
+		}
+
+		std::ifstream theStream(filePath.data(), std::ios::binary | std::ios::in);
+		std::stringstream inputStream{};
+		inputStream << theStream.rdbuf();
+		fileContents = inputStream.str();
+		theStream.close();
+	}
+
+	void saveFile(const std::string& fileToSave) {
+		std::ofstream theStream(filePath.data(), std::ios::binary | std::ios::out | std::ios::trunc);
+		theStream.write(fileToSave.data(), static_cast<int64_t>(fileToSave.size()));
+		theStream.close();
+	}
+
+	operator std::string() {
+		return std::string{ fileContents };
+	}
+
+  protected:
+	std::string fileContents{};
+	std::string filePath{};
 };
 
-template<typename OTy> struct Test {
-	std::vector<OTy> a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z;
+template<typename value_type> struct test {
+	std::vector<value_type> a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z;
 };
 
-template<typename OTy> struct TestGenerator {
-	std::vector<OTy> a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z;
+template<typename value_type> struct test_generator {
+	std::vector<value_type> a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z;
 
 	std::random_device randomEngine{};
-	std::mt19937 gen{ randomEngine() };
+	std::mt19937_64 gen{ randomEngine() };
 
 	static constexpr std::string_view charset{ "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~\"\\\r\b\f\t\n" };
 
-	template<typename value_type> value_type randomizeNumber(value_type mean, value_type stdDeviation) {
+	template<typename value_type_new> value_type_new randomizeNumberNormal(value_type_new mean, value_type_new stdDeviation) {
 		std::normal_distribution<> normalDistributionTwo{ static_cast<double>(mean), static_cast<double>(stdDeviation) };
 		auto theResult = normalDistributionTwo(randomEngine);
 		if (theResult < 0) {
@@ -660,75 +860,74 @@ template<typename OTy> struct TestGenerator {
 		return theResult;
 	}
 
-	JSONIFIER_INLINE static json_data generateJsonData() {
-		std::string buffer{};
-		TestGenerator generator{};
-		jsonifier::jsonifier_core parser{};
-		//glz::write_json(generator, buffer);
-		//std::cout << "SERIALIZED JSON (GLAZE): " << buffer << std::endl;
-		buffer.clear();
-		parser.serializeJson(generator, buffer);
-		//std::cout << "SERIALIZED JSON: " << buffer << std::endl;
-		json_data returnData{};
-		returnData.theData = buffer;
-		return returnData;
+	template<typename value_type_new> value_type_new randomizeNumberUniform(value_type_new range) {
+		std::uniform_int_distribution<uint64_t> dis(0, range);
+		return dis(randomEngine);
+	}
+
+	void insertUnicodeInJSON(std::string& jsonString) {
+		auto newStringView = unicode_emoji::unicodeEmoji[randomizeNumberUniform(std::size(unicode_emoji::unicodeEmoji) - 1)];
+		jsonString += static_cast<std::string>(newStringView);
 	}
 
 	std::string generateString() {
-		auto length{ randomizeNumber(45.0f, 25.0f) };
-		static int32_t charsetSize = charset.size();
-		std::mt19937 generator(std::random_device{}());
-		std::uniform_int_distribution<int32_t> distribution(0, charsetSize - 1);
+		auto length{ randomizeNumberNormal(64.0f, 16.0f) };
+		static constexpr uint32_t charsetSize = charset.size();
+		auto unicodeCount					  = randomizeNumberUniform(length / 8);
 		std::string result{};
 		for (int32_t x = 0; x < length; ++x) {
-			result += charset[distribution(generator)];
+			if (x == static_cast<int32_t>(length / unicodeCount)) {
+				insertUnicodeInJSON(result);
+			}
+			result += charset[randomizeNumberUniform(charsetSize - 1)];
 		}
 		return result;
 	}
 
 	double generateDouble() {
-		auto newValue = randomizeNumber(double{}, std::numeric_limits<double>::max() / 50000000);
+		auto newValue = randomizeNumberNormal(double{}, std::numeric_limits<double>::max() / 50000000);
 		return generateBool() ? newValue : -newValue;
 	};
 
 	bool generateBool() {
-		return static_cast<bool>(randomizeNumber(50.0f, 50.0f) >= 50.0f);
+		return static_cast<bool>(randomizeNumberNormal(50.0f, 50.0f) >= 50.0f);
 	};
 
 	uint64_t generateUint() {
-		return randomizeNumber(std::numeric_limits<uint64_t>::max() / 2, std::numeric_limits<uint64_t>::max() / 2);
+		return randomizeNumberNormal(std::numeric_limits<uint64_t>::max() / 2, std::numeric_limits<uint64_t>::max() / 2);
 	};
 
 	int64_t generateInt() {
-		auto newValue = randomizeNumber(int64_t{}, std::numeric_limits<int64_t>::max());
+		auto newValue = randomizeNumberNormal(int64_t{}, std::numeric_limits<int64_t>::max());
 		return generateBool() ? newValue : -newValue;
 	};
 
-	TestGenerator() {
+	test_generator() {
 		auto fill = [&](auto& v) {
-			auto arraySize01 = randomizeNumber(35, 20);
-			auto arraySize02 = randomizeNumber(20, 10);
-			auto arraySize03 = randomizeNumber(5, 1);
+			auto arraySize01 = randomizeNumberNormal(35ull, 10ull);
+			auto arraySize02 = randomizeNumberNormal(15ull, 10ull);
+			auto arraySize03 = randomizeNumberNormal(5ull, 1ull);
 			v.resize(arraySize01);
 			for (uint64_t x = 0; x < arraySize01; ++x) {
-				auto arraySize01 = randomizeNumber(arraySize02, arraySize03);
+				auto arraySize01 = randomizeNumberNormal(arraySize02, arraySize03);
 				for (uint64_t y = 0; y < arraySize01; ++y) {
 					auto newString = generateString();
 					v[x].testStrings.emplace_back(newString);
 				}
-				arraySize01 = randomizeNumber(arraySize02, arraySize03);
+				arraySize01 = randomizeNumberNormal(arraySize02, arraySize03);
 				for (uint64_t y = 0; y < arraySize01; ++y) {
 					v[x].testUints.emplace_back(generateUint());
 				}
-				arraySize01 = randomizeNumber(arraySize02, arraySize03);
+				arraySize01 = randomizeNumberNormal(arraySize02, arraySize03);
 				for (uint64_t y = 0; y < arraySize01; ++y) {
 					v[x].testInts.emplace_back(generateInt());
 				}
-				arraySize01 = randomizeNumber(arraySize02, arraySize03);
+				arraySize01 = randomizeNumberNormal(arraySize02, arraySize03);
 				for (uint64_t y = 0; y < arraySize01; ++y) {
-					v[x].testBools.emplace_back(generateBool());
+					auto newBool = generateBool();
+					v[x].testBools.emplace_back(newBool);
 				}
-				arraySize01 = randomizeNumber(arraySize02, arraySize03);
+				arraySize01 = randomizeNumberNormal(arraySize02, arraySize03);
 				for (uint64_t y = 0; y < arraySize01; ++y) {
 					v[x].testDoubles.emplace_back(generateDouble());
 				}
@@ -764,1973 +963,1339 @@ template<typename OTy> struct TestGenerator {
 	}
 };
 
-GLZ_META(test_struct, testBools, testInts, testUints, testDoubles, testStrings);
-GLZ_META(Test<test_struct>, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z);
-GLZ_META(TestGenerator<test_struct>, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z);
-template<typename OTy> struct AbcTest {
-	std::vector<OTy> z, y, x, w, v, u, t, s, r, q, p, o, n, m, l, k, j, i, h, g, f, e, d, c, b, a;
+struct test_element_final {
+	std::string libraryName{};
+	std::string resultType{};
+	double resultSpeed{};
+	double medianAbsolutePercentageError{};
+	std::string color{};
+	bool operator>(const test_element_final& other) const {
+		return resultSpeed > other.resultSpeed;
+	}
+};
+
+struct test_element_pair {
+	test_element_final writeData{};
+	test_element_final readData{};
+	bool operator>(const test_element_pair& other) const {
+		return writeData > other.writeData && readData > other.readData;
+	}
+};
+
+struct test_elements_final {
+	std::vector<test_element_final> results{};
+	std::string testName{};
+};
+
+using test_results_final = std::vector<test_elements_final>;
+
+template<> struct jsonifier::core<test_element_final> {
+	using value_type = test_element_final;
+	static constexpr auto parseValue =
+		createValue<&value_type::libraryName, &value_type::resultType, &value_type::resultSpeed, &value_type::medianAbsolutePercentageError, &value_type::color>();
+};
+
+template<> struct jsonifier::core<test_elements_final> {
+	using value_type				 = test_elements_final;
+	static constexpr auto parseValue = createValue<&value_type::results, &value_type::testName>();
+};
+
+template<typename value_type> struct abc_test {
+	std::vector<value_type> z, y, x, w, v, u, t, s, r, q, p, o, n, m, l, k, j, i, h, g, f, e, d, c, b, a;
 };
 
 template<> struct jsonifier::core<test_struct> {
-	using OTy = test_struct;
-	static constexpr auto parseValue =
-		createValue("testBools", &OTy::testBools, "testInts", &OTy::testInts, "testUints", &OTy::testUints, "testDoubles", &OTy::testDoubles, "testStrings", &OTy::testStrings);
+	using value_type				 = test_struct;
+	static constexpr auto parseValue = createValue<&value_type::testStrings, &value_type::testUints, &value_type::testDoubles, &value_type::testInts, &value_type::testBools>();
 };
 
-template<> struct jsonifier::core<Test<test_struct>> {
-	using OTy						 = Test<test_struct>;
-	static constexpr auto parseValue = createValue("a", &OTy::a, "b", &OTy::b, "c", &OTy::c, "d", &OTy::d, "e", &OTy::e, "f", &OTy::f, "g", &OTy::g, "h", &OTy::h, "i", &OTy::i,
-		"j", &OTy::j, "k", &OTy::k, "l", &OTy::l, "m", &OTy::m, "n", &OTy::n, "o", &OTy::o, "p", &OTy::p, "q", &OTy::q, "r", &OTy::r, "s", &OTy::s, "t", &OTy::t, "u", &OTy::u, "v",
-		&OTy::v, "w", &OTy::w, "x", &OTy::x, "y", &OTy::y, "z", &OTy::z);
+template<> struct jsonifier::core<test<test_struct>> {
+	using value_type				 = test<test_struct>;
+	static constexpr auto parseValue = createValue<&value_type::a, &value_type::b, &value_type::c, &value_type::d, &value_type::e, &value_type::f, &value_type::g, &value_type::h,
+		&value_type::i, &value_type::j, &value_type::k, &value_type::l, &value_type::m, &value_type::n, &value_type::o, &value_type::p, &value_type::q, &value_type::r,
+		&value_type::s, &value_type::t, &value_type::u, &value_type::v, &value_type::w, &value_type::x, &value_type::y, &value_type::z>();
 };
 
-
-template<> struct jsonifier::core<TestGenerator<test_struct>> {
-	using OTy						 = TestGenerator<test_struct>;
-	static constexpr auto parseValue = createValue("a", &OTy::a, "b", &OTy::b, "c", &OTy::c, "d", &OTy::d, "e", &OTy::e, "f", &OTy::f, "g", &OTy::g, "h", &OTy::h, "i", &OTy::i,
-		"j", &OTy::j, "k", &OTy::k, "l", &OTy::l, "m", &OTy::m, "n", &OTy::n, "o", &OTy::o, "p", &OTy::p, "q", &OTy::q, "r", &OTy::r, "s", &OTy::s, "t", &OTy::t, "u", &OTy::u, "v",
-		&OTy::v, "w", &OTy::w, "x", &OTy::x, "y", &OTy::y, "z", &OTy::z);
+template<> struct jsonifier::core<test_generator<test_struct>> {
+	using value_type				 = test_generator<test_struct>;
+	static constexpr auto parseValue = createValue<&value_type::a, &value_type::b, &value_type::c, &value_type::d, &value_type::e, &value_type::f, &value_type::g, &value_type::h,
+		&value_type::i, &value_type::j, &value_type::k, &value_type::l, &value_type::m, &value_type::n, &value_type::o, &value_type::p, &value_type::q, &value_type::r,
+		&value_type::s, &value_type::t, &value_type::u, &value_type::v, &value_type::w, &value_type::x, &value_type::y, &value_type::z>();
 };
 
-template<> struct jsonifier::core<AbcTest<test_struct>> {
-	using OTy						 = AbcTest<test_struct>;
-	static constexpr auto parseValue = createValue("z", &OTy::z, "y", &OTy::y, "x", &OTy::x, "w", &OTy::w, "v", &OTy::v, "u", &OTy::u, "t", &OTy::t, "s", &OTy::s, "r", &OTy::r,
-		"q", &OTy::q, "p", &OTy::p, "o", &OTy::o, "n", &OTy::n, "m", &OTy::m, "l", &OTy::l, "k", &OTy::k, "j", &OTy::j, "i", &OTy::i, "h", &OTy::h, "g", &OTy::g, "f", &OTy::f, "e",
-		&OTy::e, "d", &OTy::d, "c", &OTy::c, "b", &OTy::b, "a", &OTy::a);
+template<> struct jsonifier::core<abc_test<test_struct>> {
+	using value_type				 = abc_test<test_struct>;
+	static constexpr auto parseValue = createValue<&value_type::z, &value_type::y, &value_type::x, &value_type::w, &value_type::v, &value_type::u, &value_type::t, &value_type::s,
+		&value_type::r, &value_type::q, &value_type::p, &value_type::o, &value_type::n, &value_type::m, &value_type::l, &value_type::k, &value_type::j, &value_type::i,
+		&value_type::h, &value_type::g, &value_type::f, &value_type::e, &value_type::d, &value_type::c, &value_type::b, &value_type::a>();
 };
 
-GLZ_META(AbcTest<test_struct>, z, y, x, w, v, u, t, s, r, q, p, o, n, m, l, k, j, i, h, g, f, e, d, c, b, a);
+#if !defined(ASAN)
 
-#if defined(NDEBUG)
-constexpr uint64_t iterations = 200;
-#else
-constexpr uint64_t iterations = 1;
+template<> struct glz::meta<test_struct> {
+	using value_type			= test_struct;
+	static constexpr auto value = object("testStrings", &value_type::testStrings, "testUints", &value_type::testUints, "testDoubles", &value_type::testDoubles, "testInts",
+		&value_type::testInts, "testBools", &value_type::testBools);
+};
+
+template<> struct glz::meta<test<test_struct>> {
+	using value_type			= test<test_struct>;
+	static constexpr auto value = object("a", &value_type::a, "b", &value_type::b, "c", &value_type::c, "d", &value_type::d, "e", &value_type::e, "f", &value_type::f, "g",
+		&value_type::g, "h", &value_type::h, "i", &value_type::i, "j", &value_type::j, "k", &value_type::k, "l", &value_type::l, "m", &value_type::m, "n", &value_type::n, "o",
+		&value_type::o, "p", &value_type::p, "q", &value_type::q, "r", &value_type::r, "s", &value_type::s, "t", &value_type::t, "u", &value_type::u, "v", &value_type::v, "w",
+		&value_type::w, "x", &value_type::x, "y", &value_type::y, "z", &value_type::z);
+};
+
+template<> struct glz::meta<test_generator<test_struct>> {
+	using value_type			= test_generator<test_struct>;
+	static constexpr auto value = object("a", &value_type::a, "b", &value_type::b, "c", &value_type::c, "d", &value_type::d, "e", &value_type::e, "f", &value_type::f, "g",
+		&value_type::g, "h", &value_type::h, "i", &value_type::i, "j", &value_type::j, "k", &value_type::k, "l", &value_type::l, "m", &value_type::m, "n", &value_type::n, "o",
+		&value_type::o, "p", &value_type::p, "q", &value_type::q, "r", &value_type::r, "s", &value_type::s, "t", &value_type::t, "u", &value_type::u, "v", &value_type::v, "w",
+		&value_type::w, "x", &value_type::x, "y", &value_type::y, "z", &value_type::z);
+};
+
+template<> struct glz::meta<abc_test<test_struct>> {
+	using value_type			= abc_test<test_struct>;
+	static constexpr auto value = object("z", &value_type::z, "y", &value_type::y, "x", &value_type::x, "w", &value_type::w, "v", &value_type::v, "u", &value_type::u, "t",
+		&value_type::t, "s", &value_type::s, "r", &value_type::r, "q", &value_type::q, "p", &value_type::p, "o", &value_type::o, "n", &value_type::n, "m", &value_type::m, "l",
+		&value_type::l, "k", &value_type::k, "j", &value_type::j, "i", &value_type::i, "h", &value_type::h, "g", &value_type::g, "f", &value_type::f, "e", &value_type::e, "d",
+		&value_type::d, "c", &value_type::c, "b", &value_type::b, "a", &value_type::a);
+};
+
 #endif
 
-struct test_result {
-	std::string libraryName{};
-	std::string resultType{};
-	uint64_t resultSpeed{};
+#if defined(NDEBUG) && !defined(ASAN)
+constexpr uint64_t iterationsVal = 400;
+#else
+constexpr uint64_t iterationsVal = 1;
+#endif
+
+enum class result_type { read = 0, write = 1 };
+
+template<result_type type> std::string enumToString() {
+	return type == result_type::read ? "Read" : "Write";
+}
+
+template<result_type type> struct result {
+	std::optional<uint64_t> byteLength{};
+	std::optional<double> jsonSpeed{};
+	std::optional<double> jsonTime{};
+	std::optional<double> medianAbsolutePercentageError{};
 	std::string color{};
+
+	result& operator=(result&&) noexcept	  = default;
+	result(result&&) noexcept				  = default;
+	result& operator=(const result&) noexcept = default;
+	result(const result&) noexcept			  = default;
+
+	result() noexcept = default;
+
+	result(const std::string& colorNew, uint64_t byteLengthNew, const bnch_swt::benchmark_results& results) {
+		byteLength.emplace(byteLengthNew);
+		jsonTime.emplace(results.resultValue);
+		medianAbsolutePercentageError.emplace(results.medianAbsolutePercentageError);
+		auto mbWrittenCount	  = static_cast<double>(byteLength.value()) / 1e+6l;
+		auto writeSecondCount = jsonTime.value() / 1e+9l;
+		jsonSpeed.emplace(mbWrittenCount / writeSecondCount);
+		color = colorNew;
+	}
+
+	operator bool() const {
+		return jsonSpeed.has_value();
+	}
+
+	bool operator>(const result& other) const {
+		if (jsonSpeed.has_value() && other.jsonSpeed.has_value()) {
+			return this->jsonSpeed.value() > other.jsonSpeed.value();
+		} else if (!jsonSpeed.has_value()) {
+			return false;
+		} else if (!other.jsonSpeed.has_value()) {
+			return true;
+		}
+		return false;
+	}
+};
+
+struct results_data {
+	std::unordered_set<std::string> jsonifierExcludedKeys{};
+	result<result_type::write> writeResult{};
+	result<result_type::read> readResult{};
+	uint64_t iterations{};
+	std::string name{};
+	std::string test{};
+	std::string url{};
+
+	bool operator>(const results_data& other) const {
+		if (readResult && other.readResult) {
+			return readResult > other.readResult;
+		} else if (writeResult && other.writeResult) {
+			return writeResult > other.writeResult;
+		} else {
+			return false;
+		}
+	}
+
+	results_data& operator=(results_data&&) noexcept	  = default;
+	results_data(results_data&&) noexcept				  = default;
+	results_data& operator=(const results_data&) noexcept = default;
+	results_data(const results_data&) noexcept			  = default;
+
+	results_data() noexcept = default;
+
+	results_data(const std::string& nameNew, const std::string& testNew, const std::string& urlNew, uint64_t iterationsNew) {
+		iterations = iterationsNew;
+		name	   = nameNew;
+		test	   = testNew;
+		url		   = urlNew;
+	}
+
+	void checkForMissingKeys() {
+		if (!writeResult.jsonSpeed.has_value()) {
+			jsonifierExcludedKeys.emplace("writeResult");
+		} else if (!readResult.jsonSpeed.has_value()) {
+			jsonifierExcludedKeys.emplace("readResult");
+		}
+	}
+
+	void print() const {
+		std::cout << std::string{ "| " } + name + " " + test + ": " + url + "\n" +
+				"| ------------------------------------------------------------ "
+				"|\n";
+		if (readResult.byteLength.has_value() && readResult.jsonSpeed.has_value()) {
+			std::cout << enumToString<result_type::read>() + " Speed (MB/S): " << std::setprecision(6) << readResult.jsonSpeed.value() << std::endl;
+			std::cout << enumToString<result_type::read>() + " Length (Bytes): " << readResult.byteLength.value() << std::endl;
+			std::cout << enumToString<result_type::read>() + " Runtime (ns): " << std::setprecision(6) << readResult.jsonTime.value() << std::endl;
+			std::cout << enumToString<result_type::read>() + " Mape (%): " << std::setprecision(4) << readResult.medianAbsolutePercentageError.value() << std::endl;
+		}
+		if (writeResult.byteLength.has_value() && writeResult.jsonSpeed.has_value()) {
+			std::cout << enumToString<result_type::write>() + " Speed (MB/S): " << std::setprecision(6) << writeResult.jsonSpeed.value() << std::endl;
+			std::cout << enumToString<result_type::write>() + " Length (Bytes): " << writeResult.byteLength.value() << std::endl;
+			std::cout << enumToString<result_type::write>() + " Runtime (ns): " << std::setprecision(6) << writeResult.jsonTime.value() << std::endl;
+			std::cout << enumToString<result_type::write>() + " Mape (%): " << std::setprecision(4) << writeResult.medianAbsolutePercentageError.value() << std::endl;
+		}
+		std::cout << "\n---" << std::endl;
+	}
+
+	std::string jsonStats() const {
+		std::string writeLength{};
+		std::string writeTime{};
+		std::string writeMape{};
+		std::string write{};
+		std::string readLength{};
+		std::string readTime{};
+		std::string readMape{};
+		std::string read{};
+		std::string finalString{ "| [" + name + "](" + url + ") | " };
+		if (readResult.jsonTime.has_value() && readResult.byteLength.has_value()) {
+			std::stringstream stream01{};
+			stream01 << std::setprecision(6) << readResult.jsonSpeed.value();
+			read = stream01.str();
+			std::stringstream stream02{};
+			stream02 << readResult.byteLength.value();
+			readLength = stream02.str();
+			std::stringstream stream03{};
+			stream03 << std::setprecision(6) << readResult.jsonTime.value();
+			readTime = stream03.str();
+			std::stringstream stream04{};
+			stream04 << std::setprecision(4) << readResult.medianAbsolutePercentageError.value();
+			readMape = stream04.str();
+			finalString += read + " | " + readLength + " | " + readTime + " | " + readMape + " | ";
+		} else {
+			readLength = "N/A";
+			readTime   = "N/A";
+			read	   = "N/A";
+			readMape   = "N/A";
+		}
+		if (writeResult.jsonTime.has_value() && writeResult.byteLength.has_value()) {
+			std::stringstream stream01{};
+			stream01 << std::setprecision(6) << writeResult.jsonSpeed.value();
+			write = stream01.str();
+			std::stringstream stream02{};
+			stream02 << writeResult.byteLength.value();
+			writeLength = stream02.str();
+			std::stringstream stream03{};
+			stream03 << std::setprecision(6) << writeResult.jsonTime.value();
+			writeTime = stream03.str();
+			std::stringstream stream04{};
+			stream04 << std::setprecision(4) << writeResult.medianAbsolutePercentageError.value();
+			writeMape = stream04.str();
+			finalString += write + " | " + writeLength + " | " + writeTime + " | " + writeMape + " |";
+		} else {
+			writeLength = "N/A";
+			writeTime	= "N/A";
+			write		= "N/A";
+			writeMape	= "N/A";
+		}
+		return finalString;
+	}
 };
 
 struct test_results {
-	std::vector<test_result> results{};
+	std::vector<results_data> results{};
 	std::string markdownResults{};
 	std::string testName{};
 };
 
-template<> struct jsonifier::core<test_result> {
-	using value_type = test_result;
-	static constexpr auto parseValue =
-		createValue("libraryName", &value_type::libraryName, "resultSpeed", &value_type::resultSpeed, "resultType", &value_type::resultType, "color", &value_type::color);
+template<result_type type> struct jsonifier::core<result<type>> {
+	using value_type				 = result<type>;
+	static constexpr auto parseValue = createValue<&value_type::byteLength, &value_type::jsonSpeed, &value_type::jsonTime, &value_type::color>();
+};
+
+template<> struct jsonifier::core<results_data> {
+	using value_type				 = results_data;
+	static constexpr auto parseValue = createValue<&value_type::name, &value_type::readResult, &value_type::writeResult, &value_type::test, &value_type::url>();
 };
 
 template<> struct jsonifier::core<test_results> {
 	using value_type				 = test_results;
-	static constexpr auto parseValue = createValue("results", &value_type::results, "testName", &value_type::testName);
+	static constexpr auto parseValue = createValue<&value_type::results, &value_type::testName>();
 };
 
-struct results {
-	std::string name{};
-	std::string test{};
-	std::string url{};
-	uint64_t iterations{};
-	std::string wColor{};
-	std::string rColor{};
+enum class test_type {
+	parse_and_serialize = 0,
+	minify				= 1,
+	prettify			= 2,
+	validate			= 3,
+};
 
-	std::optional<uint64_t> json_write_byte_length{};
-	std::optional<uint64_t> json_read_byte_length{};
-	std::optional<double> json_read{};
-	std::optional<double> json_write{};
+enum class json_library {
+	jsonifier = 0,
+	glaze	  = 1,
+	simdjson  = 2,
+};
 
-	bool operator<(const results& other) const {
-		bool resultsNew{};
-		if (json_write && other.json_write) {
-			resultsNew = *this->json_write < *other.json_write;
-		} else if (json_read && other.json_read) {
-			resultsNew = *this->json_read < *other.json_read;
+const std::string basePath{ JSON_PATH };
+
+template<json_library lib, test_type type, typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper {};
+
+template<typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName>
+struct json_test_helper<json_library::jsonifier, test_type::parse_and_serialize, test_data_type, minified, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
+
+		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
+		jsonifier::jsonifier_core parser{};
+		test_data_type testData{};
+		auto readResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "teal", iterations>([&]() {
+				parser.parseJson<jsonifier::parse_options{ .minified = minified }>(testData, buffer);
+				auto* newPtr = &testData;
+				bnch_swt::doNotOptimizeAway(newPtr);
+			});
+		for (auto& value: parser.getErrors()) {
+			std::cout << "Jsonifier Error: " << value << std::endl;
 		}
-		return resultsNew;
-	}
+		std::string newerBuffer{};
+		auto readSize = buffer.size();
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				parser.serializeJson<jsonifier::serialize_options{ .prettify = !minified }>(testData, newerBuffer);
+				auto* newPtr = &newerBuffer;
+				bnch_swt::doNotOptimizeAway(newPtr);
+			});
 
-	void print() {
-		std::cout << std::string{ "| " } + name + " " + test + ": " + url + "\n" +
-				"| ------------------------------------------------------------ "
-				"|\n";
-
-		if (json_read_byte_length && json_read) {
-			auto mbReadCount	 = static_cast<double>(*json_read_byte_length) / 1e+6l;
-			auto readSecondCount = *json_read / 1e+9l;
-			std::cout << "Read Length: " << *json_read_byte_length << std::endl;
-			std::cout << "Read: " << mbReadCount / readSecondCount << " MB/s\n";
-		}
-		if (json_write_byte_length && json_write) {
-			auto mbWrittenCount	  = static_cast<double>(*json_write_byte_length) / 1e+6l;
-			auto writeSecondCount = *json_write / 1e+9l;
-			std::cout << "Write Length: " << *json_write_byte_length << std::endl;
-			std::cout << "Write: " << mbWrittenCount / writeSecondCount << " MB/s\n";
-		}
-
-		std::cout << "\n---" << std::endl;
-	}
-
-	test_result getWriteResults() {
-		test_result result{};
-		if (json_write_byte_length && json_write) {
-			result.libraryName	  = name;
-			auto mbWrittenCount	  = static_cast<double>(*json_write_byte_length) / 1e+6l;
-			auto writeSecondCount = *json_write / 1e+9l;
-			result.resultSpeed	  = mbWrittenCount / writeSecondCount;
-			result.resultType	  = "Write";
-			result.color		  = wColor;
-		}
-		return result;
-	}
-
-	test_result getReadResults() {
-		test_result result{};
-		if (json_read_byte_length && json_read) {
-			result.libraryName	 = name;
-			auto mbWrittenCount	 = static_cast<double>(*json_read_byte_length) / 1e+6l;
-			auto readSecondCount = *json_read / 1e+9l;
-			result.resultSpeed	 = mbWrittenCount / readSecondCount;
-			result.resultType	 = "Read";
-			result.color		 = rColor;
-		}
-		return result;
-	}
-
-	std::string jsonStats() {
-		std::string write{};
-		std::string read{};
-		if (json_read && json_read_byte_length) {
-			double mbReadCount	   = static_cast<double>(*json_read_byte_length) / 1e+6l;
-			double readSecondCount = *json_read / 1e+9l;
-			std::stringstream stream01{};
-			stream01 << static_cast<double>(mbReadCount / readSecondCount);
-			read = stream01.str();
-		} else {
-			read = "N/A";
-		}
-		if (json_write && json_write_byte_length) {
-			double mbWrittenCount	= static_cast<double>(*json_write_byte_length) / 1e+6l;
-			double writeSecondCount = *json_write / 1e+9l;
-			std::stringstream stream01{};
-			stream01 << static_cast<double>(mbWrittenCount / writeSecondCount);
-			write = stream01.str();
-		} else {
-			write = "N/A";
+		for (auto& value: parser.getErrors()) {
+			std::cout << "Jsonifier Error: " << value << std::endl;
 		}
 
-		return std::string{ "| [" + name + "](" + url + ") | " + read + " | " + write + " |" };
+		auto writtenSize = newerBuffer.size();
+		r.readResult	 = result<result_type::read>{ "teal", readSize, readResult };
+		r.writeResult	 = result<result_type::write>{ "steelblue", writtenSize, writeResult };
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-jsonifier.json" };
+		fileLoader.saveFile(buffer);
+		if (doWePrint) {
+			r.print();
+		}
+
+		return r;
 	}
 };
 
-class FileLoader {
-  public:
-	FileLoader(const char* filePathNew) {
-		filePath	   = filePathNew;
-		auto theStream = std::ofstream{ filePath.data(), std::ios::binary | std::ios::out | std::ios::in };
-		std::stringstream inputStream{};
-		inputStream << theStream.rdbuf();
-		fileContents = inputStream.str();
-		theStream.close();
-	}
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::jsonifier, test_type::prettify, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
 
-	void saveFile(jsonifier::string_view fileToSave) {
-		auto theStream = std::ofstream{ filePath.data(), std::ios::binary | std::ios::out | std::ios::in | std::ios::trunc };
-		theStream << "";
-		theStream.write(fileToSave.data(), fileToSave.size());
-		theStream.close();
-	}
+		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
+		jsonifier::jsonifier_core parser{};
+		std::string newerBuffer{};
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				parser.prettifyJson(buffer, newerBuffer);
+				bnch_swt::doNotOptimizeAway(newerBuffer);
+			});
+		for (auto& value: parser.getErrors()) {
+			std::cout << "Jsonifier Error: " << value << std::endl;
+		}
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-jsonifier.json" };
+		fileLoader.saveFile(newerBuffer);
 
-	operator std::string() {
-		return std::string{ fileContents };
-	}
+		r.writeResult = result<result_type::write>{ "steelblue", newerBuffer.size(), writeResult };
 
-	~FileLoader() {
-	}
+		if (doWePrint) {
+			r.print();
+		}
 
-  protected:
-	std::string fileContents{};
-	std::string filePath{};
+		return r;
+	}
 };
 
-template<typename Function> double benchmark(Function function, int64_t iterationCount) {
-	std::chrono::duration<double, std::nano> currentLowestTime{ std::numeric_limits<double>::max() };
-	for (int64_t x = 0; x < iterationCount; ++x) {
-		auto startTime = std::chrono::high_resolution_clock::now();
-		function();
-		auto endTime = std::chrono::high_resolution_clock::now();
-		auto newTime = std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(endTime - startTime);
-		if (newTime < currentLowestTime) {
-			currentLowestTime = newTime;
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::jsonifier, test_type::minify, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
+		std::string newerBuffer{};
+		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
+		jsonifier::jsonifier_core parser{};
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				parser.minifyJson(buffer, newerBuffer);
+				bnch_swt::doNotOptimizeAway(newerBuffer);
+			});
+		for (auto& value: parser.getErrors()) {
+			std::cout << "Jsonifier Error: " << value << std::endl;
 		}
-	}
-	if (currentLowestTime.count() == std::numeric_limits<double>::max()) {
-		currentLowestTime = std::chrono::duration<double, std::nano>{ 0 };
-	}
-	return currentLowestTime.count();
-}
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-jsonifier.json" };
+		fileLoader.saveFile(newerBuffer);
 
-auto jsonifierSingleTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
+		r.writeResult = result<result_type::write>{ "steelblue", newerBuffer.size(), writeResult };
+		;
 
-	results r{ "jsonifier", "Single Test", "https://github.com/realtimechris/jsonifier", 1 };
-	Test<test_struct> uint64Test{};
-	jsonifier::jsonifier_core parser{};
-	auto result = benchmark(
-		[&]() {
-			parser.parseJson(uint64Test, buffer);
-		},
-		1);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-	r.json_read				= result;
-	r.wColor				= "steelblue";
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			parser.serializeJson(uint64Test, buffer);
-		},
-		1);
-	for (auto& value: uint64Test.a) {
-		for (auto& value02: value.testStrings) {
-			//std::cout << "VALUE: " << value02 << std::endl;
+		if (doWePrint) {
+			r.print();
 		}
+		return r;
 	}
+};
 
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::jsonifier, test_type::validate, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
+
+		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
+		jsonifier::jsonifier_core parser{};
+
+		auto readResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				parser.validateJson(buffer);
+				bnch_swt::doNotOptimizeAway(buffer);
+			});
+
+		for (auto& value: parser.getErrors()) {
+			std::cout << "Jsonifier Error: " << value << std::endl;
+		}
+
+		r.readResult = result<result_type::read>{ "teal", buffer.size(), readResult };
+
+		if (doWePrint) {
+			r.print();
+		}
+
+
+		return r;
 	}
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.rColor				 = "teal";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
+};
 
-	return r;
-}
-
-auto jsonifierValidationTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-
-	results r{ "jsonifier", "Validation Test", "https://github.com/realtimechris/jsonifier", iterations };
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.validate(buffer);
-		},
-		1);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-
-	r.wColor = "steelblue";
-	r.rColor = "teal";
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto jsonifierTwitterTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-
-	results r{ "jsonifier", "Twitter Test", "https://github.com/realtimechris/jsonifier", iterations };
-	twitter_message uint64Test{};
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.parseJson(uint64Test, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			parser.serializeJson(uint64Test, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "steelblue";
-	r.rColor				 = "teal";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto jsonifierTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-
-	results r{ "jsonifier", "Multi Test", "https://github.com/realtimechris/jsonifier", iterations };
-	Test<test_struct> uint64Test{};
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.parseJson(uint64Test, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			parser.serializeJson(uint64Test, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "steelblue";
-	r.rColor				 = "teal";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto jsonifierAbcTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-
-	results r{ "jsonifier", "Abc Test", "https://github.com/realtimechris/jsonifier", iterations };
-	AbcTest<test_struct> uint64Test{};
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.parseJson(uint64Test, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			parser.serializeJson(uint64Test, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-	r.json_write_byte_length = buffer.size();
-
-	r.json_write = result;
-	r.wColor	 = "steelblue";
-	r.rColor	 = "teal";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto jsonifierDiscordTest(jsonifier::string_view discordDataNew, bool doWePrint = true) {
-	std::string buffer{ discordDataNew };
-	auto newSize = buffer.size();
-
-	results r{ "jsonifier", "Discord Test", "https://github.com/realtimechris/jsonifier", iterations };
-	discord_message discordDataTest{};
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.parseJson(discordDataTest, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			parser.serializeJson(discordDataTest, buffer);
-		},
-		iterations);
-	for (auto& value: parser.getErrors()) {
-		std::cout << "Jsonifier Error: " << value << std::endl;
-	}
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "steelblue";
-	r.rColor				 = "teal";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto jsonifierMinifyTest(jsonifier::string_view discordDataNew, bool doWePrint = true) {
-	std::string buffer{ discordDataNew };
-
-	results r{ "jsonifier", "Minify Test", "https://github.com/realtimechris/jsonifier", iterations };
-
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.minify(buffer);
-		},
-		iterations);
-
-	r.json_write = result;
-
-	r.wColor				 = "steelblue";
-	r.rColor				 = "teal";
-	r.json_write_byte_length = buffer.size();
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto jsonifierPrettifyTest(jsonifier::string_view discordDataNew, bool doWePrint = true) {
-	std::string buffer{ discordDataNew };
-
-	results r{ "jsonifier", "Prettify Test", "https://github.com/realtimechris/jsonifier", iterations };
-
-	jsonifier::jsonifier_core parser{};
-
-	auto result = benchmark(
-		[&]() {
-			parser.prettify(buffer);
-		},
-		iterations);
-
-	r.json_write = result;
-
-	r.json_write_byte_length = buffer.size();
-	r.wColor				 = "steelblue";
-	r.rColor				 = "teal";
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
 #if !defined(ASAN)
-auto glazeSingleTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
+template<typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName>
+struct json_test_helper<json_library::glaze, test_type::parse_and_serialize, test_data_type, minified, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
 
-	results r{ "glaze", "Single Test", "https://github.com/stephenberry/glaze", 1 };
-	Test<test_struct> uint64Test{};
-
-	auto result = benchmark(
-		[&]() {
-			try {
-				if (auto error = glz::read<glz::opts{ .error_on_unknown_keys = false }>(uint64Test, buffer); error) {
+		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
+		test_data_type testData{};
+		auto readResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				if (auto error = glz::read<glz::opts{ .skip_null_members = false, .minified = minified }>(testData, buffer); error) {
 					std::cout << "Glaze Error: " << glz::format_error(error, buffer) << std::endl;
 				}
-			} catch (std ::exception& error) {
-				std::cout << "Glaze Error: " << error.what() << std::endl;
-			}
-		},
-		1);
+				auto* newPtr = &testData;
+				bnch_swt::doNotOptimizeAway(newPtr);
+			});
+		std::string newerBuffer{};
+		auto readSize = buffer.size();
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				bnch_swt::doNotOptimizeAway(glz::write<glz::opts{ .skip_null_members = false, .prettify = !minified, .minified = minified }>(testData, newerBuffer));
+				auto* newPtr = &newerBuffer;
+				bnch_swt::doNotOptimizeAway(newPtr);
+			});
 
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
+		auto writtenSize = newerBuffer.size();
+		r.readResult	 = result<result_type::read>{ "dodgerblue", readSize, readResult };
+		r.writeResult	 = result<result_type::write>{ "skyblue", writtenSize, writeResult };
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-glaze.json" };
+		fileLoader.saveFile(buffer);
+		if (doWePrint) {
+			r.print();
+		}
 
-	result = benchmark(
-		[&]() {
-			glz::write_json(uint64Test, buffer);
-		},
-		1);
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "skyblue";
-	r.rColor				 = "dodgerblue";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
+		return r;
 	}
+};
 
-	return r;
-}
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::glaze, test_type::prettify, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
 
-auto glazeTwitterTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
+		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
+		std::string newerBuffer{};
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				glz::prettify_json(buffer, newerBuffer);
+				bnch_swt::doNotOptimizeAway(newerBuffer);
+			});
 
-	results r{ "glaze", "Twitter Test", "https://github.com/stephenberry/glaze", iterations };
-	twitter_message uint64Test{};
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-glaze.json" };
+		fileLoader.saveFile(newerBuffer);
+		r.writeResult = result<result_type::write>{ "skyblue", newerBuffer.size(), writeResult };
+		if (doWePrint) {
+			r.print();
+		}
 
-	auto result = benchmark(
-		[&]() {
-			try {
-				if (auto error = glz::read<glz::opts{ .error_on_unknown_keys = false }>(uint64Test, buffer); error) {
-					std::cout << "Glaze Error: " << glz::format_error(error, buffer) << std::endl;
-				}
-			} catch (std ::exception& error) {
-				std::cout << "Glaze Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			glz::write_json(uint64Test, buffer);
-		},
-		iterations);
-
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "skyblue";
-	r.rColor				 = "dodgerblue";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
+		return r;
 	}
+};
 
-	return r;
-}
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::glaze, test_type::minify, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
 
-auto glazeTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
+		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
+		std::string newerBuffer{};
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				glz::minify_json(buffer, newerBuffer);
+				bnch_swt::doNotOptimizeAway(newerBuffer);
+			});
 
-	results r{ "glaze", "Multi Test", "https://github.com/stephenberry/glaze", iterations };
-	Test<test_struct> uint64Test{};
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-glaze.json" };
+		fileLoader.saveFile(newerBuffer);
+		r.writeResult = result<result_type::write>{ "skyblue", newerBuffer.size(), writeResult };
+		if (doWePrint) {
+			r.print();
+		}
 
-	auto result = benchmark(
-		[&]() {
-			try {
-				if (auto error = glz::read<glz::opts{ .error_on_unknown_keys = false }>(uint64Test, buffer); error) {
-					std::cout << "Glaze Error: " << glz::format_error(error, buffer) << std::endl;
-				}
-			} catch (std ::exception& error) {
-				std::cout << "Glaze Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			glz::write_json(uint64Test, buffer);
-		},
-		iterations);
-
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "skyblue";
-	r.rColor				 = "dodgerblue";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
+		return r;
 	}
+};
 
-	return r;
-}
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::glaze, test_type::validate, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		const std::string buffer{ newBuffer };
 
-auto glazeAbcTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
+		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
+				auto result = glz::validate_json(buffer);
+				bnch_swt::doNotOptimizeAway(result);
+			});
 
-	results r{ "glaze", "Abc Test", "https://github.com/stephenberry/glaze", iterations };
-	AbcTest<test_struct> uint64Test{};
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-glaze.json" };
+		fileLoader.saveFile(buffer);
+		r.readResult = result<result_type::read>{ "skyblue", buffer.size(), writeResult };
+		if (doWePrint) {
+			r.print();
+		}
 
-	auto result = benchmark(
-		[&]() {
-			try {
-				if (auto error = glz::read<glz::opts{ .error_on_unknown_keys = false }>(uint64Test, buffer); error) {
-					std::cout << "Glaze Error: " << glz::format_error(error, buffer) << std::endl;
-				}
-			} catch (std ::exception& error) {
-				std::cout << "Glaze Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read = result;
-
-	r.json_read_byte_length = buffer.size();
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			glz::write_json(uint64Test, buffer);
-		},
-		iterations);
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "skyblue";
-	r.rColor				 = "dodgerblue";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
+		return r;
 	}
-
-	return r;
-}
-
-auto glazeDiscordTest(jsonifier::string_view discordData, bool doWePrint = true) {
-	std::string buffer{ discordData };
-
-	results r{ "glaze", "Discord Test", "https://github.com/stephenberry/glaze", iterations };
-	discord_message discordDataTest{};
-
-	auto result = benchmark(
-		[&]() {
-			try {
-				if (auto error = glz::read<glz::opts{ .error_on_unknown_keys = false }>(discordDataTest, buffer); error) {
-					std::cout << "Glaze Error: " << glz::format_error(error, buffer) << std::endl;
-				}
-			} catch (std ::exception& error) {
-				std::cout << "Glaze Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read				= result;
-	r.json_read_byte_length = buffer.size();
-
-	buffer.clear();
-
-	result = benchmark(
-		[&]() {
-			glz::write_json(discordDataTest, buffer);
-		},
-		iterations);
-	r.json_write_byte_length = buffer.size();
-	r.json_write			 = result;
-	r.wColor				 = "skyblue";
-	r.rColor				 = "dodgerblue";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
-	return r;
-}
-
-auto glazePrettifyTest(jsonifier::string_view discordDataNew, bool doWePrint = true) {
-	std::string buffer{ discordDataNew };
-
-	results r{ "glaze", "Prettify Test", "https://github.com/stephenberry/glaze", iterations };
-
-	auto result = benchmark(
-		[&]() {
-			glz::prettify(buffer);
-		},
-		iterations);
-
-	r.json_write = result;
-
-	r.json_write_byte_length = buffer.size();
-	r.wColor				 = "skyblue";
-	r.rColor				 = "dodgerblue";
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
+};
 
 	#include "simdjson.h"
 
-using namespace simdjson;
-
-struct on_demand {
-	bool readInOrder(Test<test_struct>& obj, const padded_string& json);
-
-  protected:
-	ondemand::parser parser{};
-};
-
-template<typename OTy2> void simdPullArray(ondemand::array newX, jsonifier::vector<OTy2>& newVector);
-template<typename OTy2> void simdPullArray(ondemand::array newX, std::vector<OTy2>& newVector);
-
-void simdPullMap(ondemand::object newX, std::unordered_map<std::string, std::string>& newVector) {
-	for (auto iter = newX.begin(); iter != newX.end(); ++iter) {
-		newVector.emplace(static_cast<std::string>(iter.operator*().key().value().raw()), static_cast<std::string>(iter.operator*().value().get_string().value()));
-	}
+template<typename value_type> void getValue(value_type& valueNew, simdjson::ondemand::value value) {
+	value.get(valueNew);
 }
 
-template<> void simdPullArray<double>(ondemand::array newX, std::vector<double>& newVector) {
-	for (ondemand::value value: newX) {
-		double newValue{};
-		if (!value.get_double().get(newValue)) {
-			newVector.emplace_back(newValue);
+template<jsonifier::concepts::bool_t value_type> void getValue(value_type&& valueNew, simdjson::ondemand::value value) {
+	getValue<bool>(valueNew, value);
+}
+
+template<> void getValue(std::nullptr_t&, simdjson::ondemand::value) {
+}
+
+template<jsonifier::concepts::vector_t value_type> void getValue(value_type& valueNew, simdjson::ondemand::value value) {
+	simdjson::ondemand::array result;
+	auto oldSize = valueNew.size();
+	if (auto resultCode = value.get(result); !resultCode) {
+		auto iter = result.begin();
+		for (uint64_t x = 0; x < oldSize && iter != result.end(); ++x, ++iter) {
+			getValue(valueNew[x], iter.operator*().value());
+		}
+		for (; iter != result.end(); ++iter) {
+			getValue(valueNew.emplace_back(), iter.operator*().value());
 		}
 	}
 }
 
-template<> void simdPullArray<int64_t>(ondemand::array newX, std::vector<int64_t>& newVector) {
-	for (ondemand::value value: newX) {
-		int64_t newValue{};
-		if (!value.get_int64().get(newValue)) {
-			newVector.emplace_back(newValue);
+template<> void getValue<std::string>(std::string& valueNew, simdjson::ondemand::value value) {
+	std::string_view result;
+	if (auto resultCode = value.get(result); !resultCode) {
+		valueNew = static_cast<std::string>(result);
+	}
+}
+
+template<jsonifier::concepts::optional_t value_type> void getValue(value_type& valueNew, simdjson::ondemand::value valueNewer) {
+	simdjson::ondemand::value result;
+	if (auto resultCode = valueNewer.get(result); !resultCode) {
+		getValue(valueNew.emplace(), result);
+	}
+}
+
+template<jsonifier::concepts::optional_t value_type> void getValue(value_type& returnValue, simdjson::ondemand::value value, const std::string& key) {
+	simdjson::ondemand::value result;
+	if (auto resultCode = value[key].get(result); !resultCode) {
+		if (result.type() != simdjson::ondemand::json_type::null) {
+			getValue(returnValue.emplace(), result);
 		}
 	}
 }
 
-template<> void simdPullArray<uint64_t>(ondemand::array newX, std::vector<uint64_t>& newVector) {
-	for (ondemand::value value: newX) {
-		uint64_t newValue{};
-		if (!value.get_uint64().get(newValue)) {
-			newVector.emplace_back(newValue);
-		}
+template<typename value_type> void getValue(value_type& returnValue, simdjson::ondemand::value value, const std::string& key) {
+	simdjson::ondemand::value result;
+	if (auto resultCode = value[key].get(result); !resultCode) {
+		getValue(returnValue, result);
 	}
 }
 
-template<> void simdPullArray<bool>(ondemand::array newX, jsonifier::vector<bool>& newVector) {
-	for (ondemand::value value: newX) {
-		bool newValue{};
-		if (!value.get_bool().get(newValue)) {
-			newVector.emplace_back(newValue);
-		}
-	}
+template<> void getValue(std::nullptr_t&, simdjson::ondemand::value, const std::string&) {
 }
 
-template<> void simdPullArray<std::string>(ondemand::array newX, std::vector<std::string>& newVector) {
-	for (ondemand::value value: newX) {
-		std::string_view newValue{};
-		if (!value.get_string().get(newValue)) {
-			newVector.emplace_back(newValue);
+template<jsonifier::concepts::vector_t value_type> void getValue(value_type& returnValues, simdjson::ondemand::value value, const std::string& key) {
+	simdjson::ondemand::array result;
+	if (auto resultCode = value[key].get(result); !resultCode) {
+		auto oldSize = returnValues.size();
+		auto iter	 = result.begin();
+		for (uint64_t x = 0; iter != result.end() && x < oldSize; ++x, ++iter) {
+			getValue(returnValues[x], iter.operator*().value());
+		}
+		for (; iter != result.end(); ++iter) {
+			getValue(returnValues.emplace_back(), iter.operator*().value());
 		}
 	}
+	return;
 }
 
-	#define SIMD_Pull(x) \
+template<jsonifier::concepts::map_t value_type> void getValue(value_type& returnValues, simdjson::ondemand::value value, const std::string& key) {
+	simdjson::ondemand::object result;
+	if (auto resultCode = value[key].get(result); !resultCode) {
+		auto oldSize = returnValues.size();
+		auto iter	 = result.begin();
+		for (uint64_t x = 0; iter != result.end() && x < oldSize; ++x, ++iter) {
+			typename value_type::mapped_type returnValue{};
+			getValue(returnValue, iter.operator*().value());
+			returnValues[static_cast<typename value_type::key_type>(iter.operator*().key().raw())] = std::move(returnValue);
+		}
+		for (; iter != result.end(); ++iter) {
+			typename value_type::mapped_type returnValue{};
+			getValue(returnValue, iter.operator*().value());
+			returnValues[static_cast<typename value_type::key_type>(iter.operator*().key().raw())] = std::move(returnValue);
+		}
+	}
+	return;
+}
+
+template<> void getValue(geometry_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.coordinates, jsonDataNew, "coordinates");
+	getValue(returnValue.type, jsonDataNew, "type");
+}
+
+template<> void getValue(properties_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.name, jsonDataNew, "name");
+}
+
+template<> void getValue(feature& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.properties, jsonDataNew, "properties");
+	getValue(returnValue.geometry, jsonDataNew, "geometry");
+	getValue(returnValue.type, jsonDataNew, "type");
+}
+
+template<> void getValue(canada_message& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.features, jsonDataNew, "features");
+	getValue(returnValue.type, jsonDataNew, "type");
+}
+
+template<> void getValue(search_metadata_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.since_id_str, jsonDataNew, "since_id_str");
+	getValue(returnValue.next_results, jsonDataNew, "next_results");
+	getValue(returnValue.refresh_url, jsonDataNew, "refresh_url");
+	getValue(returnValue.max_id_str, jsonDataNew, "max_id_str");
+	getValue(returnValue.completed_in, jsonDataNew, "completed_in");
+	getValue(returnValue.query, jsonDataNew, "query");
+	getValue(returnValue.since_id, jsonDataNew, "since_id");
+	getValue(returnValue.count, jsonDataNew, "count");
+	getValue(returnValue.max_id, jsonDataNew, "max_id");
+}
+
+template<> void getValue(hashtag& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.indices, jsonDataNew, "indices");
+	getValue(returnValue.text, jsonDataNew, "text");
+}
+
+template<> void getValue(large_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.resize, jsonDataNew, "resize");
+	getValue(returnValue.w, jsonDataNew, "w");
+	getValue(returnValue.h, jsonDataNew, "h");
+}
+
+template<> void getValue(sizes_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.medium, jsonDataNew, "medium");
+	getValue(returnValue.small, jsonDataNew, "small");
+	getValue(returnValue.thumb, jsonDataNew, "thumb");
+	getValue(returnValue.large, jsonDataNew, "large");
+}
+
+template<> void getValue(media_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.source_status_id_str, jsonDataNew, "source_status_id_str");
+	getValue(returnValue.source_status_id, jsonDataNew, "source_status_id");
+	getValue(returnValue.indices, jsonDataNew, "indices");
+	getValue(returnValue.media_url_https, jsonDataNew, "media_url_https");
+	getValue(returnValue.expanded_url, jsonDataNew, "expanded_url");
+	getValue(returnValue.display_url, jsonDataNew, "display_url");
+	getValue(returnValue.media_url, jsonDataNew, "media_url");
+	getValue(returnValue.id_str, jsonDataNew, "id_str");
+	getValue(returnValue.type, jsonDataNew, "type");
+	getValue(returnValue.sizes, jsonDataNew, "sizes");
+	getValue(returnValue.url, jsonDataNew, "url");
+	getValue(returnValue.id, jsonDataNew, "id");
+}
+
+template<> void getValue(url_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.indices, jsonDataNew, "indices");
+	getValue(returnValue.expanded_url, jsonDataNew, "expanded_url");
+	getValue(returnValue.display_url, jsonDataNew, "display_url");
+	getValue(returnValue.url, jsonDataNew, "url");
+}
+
+template<> void getValue(user_mention& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.indices, jsonDataNew, "indices");
+	getValue(returnValue.screen_name, jsonDataNew, "screen_name");
+	getValue(returnValue.id_str, jsonDataNew, "id_str");
+	getValue(returnValue.name, jsonDataNew, "name");
+	getValue(returnValue.id, jsonDataNew, "id");
+}
+
+template<> void getValue(status_entities& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.media, jsonDataNew, "media");
+	getValue(returnValue.user_mentions, jsonDataNew, "user_mentions");
+	getValue(returnValue.symbols, jsonDataNew, "symbols");
+	getValue(returnValue.hashtags, jsonDataNew, "hashtags");
+	getValue(returnValue.urls, jsonDataNew, "urls");
+}
+
+template<> void getValue(metadata_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.iso_language_code, jsonDataNew, "iso_language_code");
+	getValue(returnValue.result_type, jsonDataNew, "result_type");
+}
+
+template<> void getValue(description_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.urls, jsonDataNew, "urls");
+}
+
+template<> void getValue(user_entities& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.url, jsonDataNew, "url");
+	getValue(returnValue.description, jsonDataNew, "description");
+}
+
+template<> void getValue(twitter_user& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.profile_background_image_url_https, jsonDataNew, "profile_background_image_url_https");
+	getValue(returnValue.profile_banner_url, jsonDataNew, "profile_banner_url");
+	getValue(returnValue.profile_background_image_url, jsonDataNew, "profile_background_image_url");
+	getValue(returnValue.profile_sidebar_fill_color, jsonDataNew, "profile_sidebar_fill_color");
+	getValue(returnValue.time_zone, jsonDataNew, "time_zone");
+	getValue(returnValue.profile_background_color, jsonDataNew, "profile_background_color");
+	getValue(returnValue.profile_image_url_https, jsonDataNew, "profile_image_url_https");
+	getValue(returnValue.utc_offset, jsonDataNew, "utc_offset");
+	getValue(returnValue.profile_use_background_image, jsonDataNew, "profile_use_background_image");
+	getValue(returnValue.url, jsonDataNew, "url");
+	getValue(returnValue.profile_text_color, jsonDataNew, "profile_text_color");
+	getValue(returnValue.profile_link_color, jsonDataNew, "profile_link_color");
+	getValue(returnValue.profile_image_url, jsonDataNew, "profile_image_url");
+	getValue(returnValue.profile_background_tile, jsonDataNew, "profile_background_tile");
+	getValue(returnValue.is_translation_enabled, jsonDataNew, "is_translation_enabled");
+	getValue(returnValue.default_profile_image, jsonDataNew, "default_profile_image");
+	getValue(returnValue.contributors_enabled, jsonDataNew, "contributors_enabled");
+	getValue(returnValue.follow_request_sent, jsonDataNew, "follow_request_sent");
+	getValue(returnValue.favourites_count, jsonDataNew, "favourites_count");
+	getValue(returnValue.description, jsonDataNew, "description");
+	getValue(returnValue.screen_name, jsonDataNew, "screen_name");
+	getValue(returnValue.followers_count, jsonDataNew, "followers_count");
+	getValue(returnValue.statuses_count, jsonDataNew, "statuses_count");
+	getValue(returnValue.created_at, jsonDataNew, "created_at");
+	getValue(returnValue.entities, jsonDataNew, "entities");
+	getValue(returnValue.friends_count, jsonDataNew, "friends_count");
+	getValue(returnValue.default_profile, jsonDataNew, "default_profile");
+	getValue(returnValue.listed_count, jsonDataNew, "listed_count");
+	getValue(returnValue.location, jsonDataNew, "location");
+	getValue(returnValue.user_protected, jsonDataNew, "user_protected");
+	getValue(returnValue.is_translator, jsonDataNew, "is_translator");
+	getValue(returnValue.id_str, jsonDataNew, "id_str");
+	getValue(returnValue.notifications, jsonDataNew, "notifications");
+	getValue(returnValue.string, jsonDataNew, "string");
+	getValue(returnValue.name, jsonDataNew, "name");
+	getValue(returnValue.geo_enabled, jsonDataNew, "geo_enabled");
+	getValue(returnValue.lang, jsonDataNew, "lang");
+	getValue(returnValue.following, jsonDataNew, "following");
+	getValue(returnValue.verified, jsonDataNew, "verified");
+	getValue(returnValue.id, jsonDataNew, "id");
+}
+
+template<> void getValue(retweeted_status_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.in_reply_to_status_id_str, jsonDataNew, "in_reply_to_status_id_str");
+	getValue(returnValue.in_reply_to_user_id_str, jsonDataNew, "in_reply_to_user_id_str");
+	getValue(returnValue.in_reply_to_screen_name, jsonDataNew, "in_reply_to_screen_name");
+	getValue(returnValue.in_reply_to_status_id, jsonDataNew, "in_reply_to_status_id");
+	getValue(returnValue.in_reply_to_user_id, jsonDataNew, "in_reply_to_user_id");
+	getValue(returnValue.possibly_sensitive, jsonDataNew, "possibly_sensitive");
+	getValue(returnValue.contributors, jsonDataNew, "contributors");
+	getValue(returnValue.coordinates, jsonDataNew, "coordinates");
+	getValue(returnValue.place, jsonDataNew, "place");
+	getValue(returnValue.geo, jsonDataNew, "geo");
+	getValue(returnValue.entities, jsonDataNew, "entities");
+	getValue(returnValue.favorite_count, jsonDataNew, "favorite_count");
+	getValue(returnValue.metadata, jsonDataNew, "metadata");
+	getValue(returnValue.created_at, jsonDataNew, "created_at");
+	getValue(returnValue.retweet_count, jsonDataNew, "retweet_count");
+	getValue(returnValue.source, jsonDataNew, "source");
+	getValue(returnValue.id_str, jsonDataNew, "id_str");
+	getValue(returnValue.user, jsonDataNew, "user");
+	getValue(returnValue.lang, jsonDataNew, "lang");
+	getValue(returnValue.text, jsonDataNew, "text");
+	getValue(returnValue.truncated, jsonDataNew, "truncated");
+	getValue(returnValue.favorited, jsonDataNew, "favorited");
+	getValue(returnValue.retweeted, jsonDataNew, "retweeted");
+	getValue(returnValue.id, jsonDataNew, "id");
+}
+
+template<> void getValue(status_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.in_reply_to_status_id_str, jsonDataNew, "in_reply_to_status_id_str");
+	getValue(returnValue.in_reply_to_user_id_str, jsonDataNew, "in_reply_to_user_id_str");
+	getValue(returnValue.in_reply_to_screen_name, jsonDataNew, "in_reply_to_screen_name");
+	getValue(returnValue.in_reply_to_status_id, jsonDataNew, "in_reply_to_status_id");
+	getValue(returnValue.in_reply_to_user_id, jsonDataNew, "in_reply_to_user_id");
+	getValue(returnValue.possibly_sensitive, jsonDataNew, "possibly_sensitive");
+	getValue(returnValue.contributors, jsonDataNew, "contributors");
+	getValue(returnValue.coordinates, jsonDataNew, "coordinates");
+	getValue(returnValue.place, jsonDataNew, "place");
+	getValue(returnValue.geo, jsonDataNew, "geo");
+	getValue(returnValue.entities, jsonDataNew, "entities");
+	getValue(returnValue.favorite_count, jsonDataNew, "favorite_count");
+	getValue(returnValue.metadata, jsonDataNew, "metadata");
+	getValue(returnValue.created_at, jsonDataNew, "created_at");
+	getValue(returnValue.retweet_count, jsonDataNew, "retweet_count");
+	getValue(returnValue.source, jsonDataNew, "source");
+	getValue(returnValue.id_str, jsonDataNew, "id_str");
+	getValue(returnValue.user, jsonDataNew, "user");
+	getValue(returnValue.lang, jsonDataNew, "lang");
+	getValue(returnValue.text, jsonDataNew, "text");
+	getValue(returnValue.truncated, jsonDataNew, "truncated");
+	getValue(returnValue.favorited, jsonDataNew, "favorited");
+	getValue(returnValue.retweeted, jsonDataNew, "retweeted");
+	getValue(returnValue.retweeted_status, jsonDataNew, "retweeted_status");
+	getValue(returnValue.id, jsonDataNew, "id");
+}
+
+template<> void getValue(twitter_message& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.search_metadata, jsonDataNew, "search_metadata");
+	getValue(returnValue.statuses, jsonDataNew, "statuses");
+}
+
+template<> void getValue(icon_emoji_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.name, jsonDataNew, "name");
+	// Since nullptr_t is not typically deserialized, handling it as necessary.
+}
+
+template<> void getValue(permission_overwrite& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.allow, jsonDataNew, "allow");
+	getValue(returnValue.deny, jsonDataNew, "deny");
+	getValue(returnValue.id, jsonDataNew, "id");
+	getValue(returnValue.type, jsonDataNew, "type");
+}
+
+template<> void getValue(channel_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.permission_overwrites, jsonDataNew, "permission_overwrites");
+	getValue(returnValue.last_message_id, jsonDataNew, "last_message_id");
+	getValue(returnValue.default_thread_rate_limit_per_user, jsonDataNew, "default_thread_rate_limit_per_user");
+	getValue(returnValue.applied_tags, jsonDataNew, "applied_tags");
+	getValue(returnValue.recipients, jsonDataNew, "recipients");
+	getValue(returnValue.default_auto_archive_duration, jsonDataNew, "default_auto_archive_duration");
+	getValue(returnValue.status, jsonDataNew, "status");
+	getValue(returnValue.last_pin_timestamp, jsonDataNew, "last_pin_timestamp");
+	getValue(returnValue.topic, jsonDataNew, "topic");
+	getValue(returnValue.rate_limit_per_user, jsonDataNew, "rate_limit_per_user");
+	getValue(returnValue.icon_emoji, jsonDataNew, "icon_emoji");
+	getValue(returnValue.total_message_sent, jsonDataNew, "total_message_sent");
+	getValue(returnValue.video_quality_mode, jsonDataNew, "video_quality_mode");
+	getValue(returnValue.application_id, jsonDataNew, "application_id");
+	getValue(returnValue.permissions, jsonDataNew, "permissions");
+	getValue(returnValue.message_count, jsonDataNew, "message_count");
+	getValue(returnValue.parent_id, jsonDataNew, "parent_id");
+	getValue(returnValue.member_count, jsonDataNew, "member_count");
+	getValue(returnValue.owner_id, jsonDataNew, "owner_id");
+	getValue(returnValue.guild_id, jsonDataNew, "guild_id");
+	getValue(returnValue.user_limit, jsonDataNew, "user_limit");
+	getValue(returnValue.position, jsonDataNew, "position");
+	getValue(returnValue.name, jsonDataNew, "name");
+	getValue(returnValue.icon, jsonDataNew, "icon");
+	getValue(returnValue.version, jsonDataNew, "version");
+	getValue(returnValue.bitrate, jsonDataNew, "bitrate");
+	getValue(returnValue.id, jsonDataNew, "id");
+	getValue(returnValue.flags, jsonDataNew, "flags");
+	getValue(returnValue.type, jsonDataNew, "type");
+	getValue(returnValue.managed, jsonDataNew, "managed");
+	getValue(returnValue.nsfw, jsonDataNew, "nsfw");
+}
+
+template<> void getValue(user_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.avatar_decoration_data, jsonDataNew, "avatar_decoration_data");
+	getValue(returnValue.display_name, jsonDataNew, "display_name");
+	getValue(returnValue.global_name, jsonDataNew, "global_name");
+	getValue(returnValue.avatar, jsonDataNew, "avatar");
+	getValue(returnValue.banner, jsonDataNew, "banner");
+	getValue(returnValue.locale, jsonDataNew, "locale");
+	getValue(returnValue.discriminator, jsonDataNew, "discriminator");
+	getValue(returnValue.user_name, jsonDataNew, "user_name");
+	getValue(returnValue.accent_color, jsonDataNew, "accent_color");
+	getValue(returnValue.premium_type, jsonDataNew, "premium_type");
+	getValue(returnValue.public_flags, jsonDataNew, "public_flags");
+	getValue(returnValue.email, jsonDataNew, "email");
+	getValue(returnValue.mfa_enabled, jsonDataNew, "mfa_enabled");
+	getValue(returnValue.id, jsonDataNew, "id");
+	getValue(returnValue.flags, jsonDataNew, "flags");
+	getValue(returnValue.verified, jsonDataNew, "verified");
+	getValue(returnValue.system, jsonDataNew, "system");
+	getValue(returnValue.bot, jsonDataNew, "bot");
+}
+
+template<> void getValue(member_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.communication_disabled_until, jsonDataNew, "communication_disabled_until");
+	getValue(returnValue.premium_since, jsonDataNew, "premium_since");
+	getValue(returnValue.nick, jsonDataNew, "nick");
+	getValue(returnValue.avatar, jsonDataNew, "avatar");
+	getValue(returnValue.roles, jsonDataNew, "roles");
+	getValue(returnValue.permissions, jsonDataNew, "permissions");
+	getValue(returnValue.joined_at, jsonDataNew, "joined_at");
+	getValue(returnValue.guild_id, jsonDataNew, "guild_id");
+	getValue(returnValue.user, jsonDataNew, "user");
+	getValue(returnValue.flags, jsonDataNew, "flags");
+	getValue(returnValue.pending, jsonDataNew, "pending");
+	getValue(returnValue.deaf, jsonDataNew, "deaf");
+	getValue(returnValue.mute, jsonDataNew, "mute");
+}
+
+template<> void getValue(tags_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.premium_subscriber, jsonDataNew, "premium_subscriber");
+	getValue(returnValue.bot_id, jsonDataNew, "bot_id");
+}
+
+template<> void getValue(role_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.unicode_emoji, jsonDataNew, "unicode_emoji");
+	getValue(returnValue.icon, jsonDataNew, "icon");
+	getValue(returnValue.permissions, jsonDataNew, "permissions");
+	getValue(returnValue.position, jsonDataNew, "position");
+	getValue(returnValue.name, jsonDataNew, "name");
+	getValue(returnValue.mentionable, jsonDataNew, "mentionable");
+	getValue(returnValue.version, jsonDataNew, "version");
+	getValue(returnValue.id, jsonDataNew, "id");
+	getValue(returnValue.tags, jsonDataNew, "tags");
+	getValue(returnValue.color, jsonDataNew, "color");
+	getValue(returnValue.flags, jsonDataNew, "flags");
+	getValue(returnValue.managed, jsonDataNew, "managed");
+	getValue(returnValue.hoist, jsonDataNew, "hoist");
+}
+
+template<> void getValue(guild_data& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.latest_on_boarding_question_id, jsonDataNew, "latest_on_boarding_question_id");
+	getValue(returnValue.guild_scheduled_events, jsonDataNew, "guild_scheduled_events");
+	getValue(returnValue.safety_alerts_channel_id, jsonDataNew, "safety_alerts_channel_id");
+	getValue(returnValue.inventory_settings, jsonDataNew, "inventory_settings");
+	getValue(returnValue.voice_states, jsonDataNew, "voice_states");
+	getValue(returnValue.discovery_splash, jsonDataNew, "discovery_splash");
+	getValue(returnValue.vanity_url_code, jsonDataNew, "vanity_url_code");
+	getValue(returnValue.application_id, jsonDataNew, "application_id");
+	getValue(returnValue.afk_channel_id, jsonDataNew, "afk_channel_id");
+	getValue(returnValue.default_message_notifications, jsonDataNew, "default_message_notifications");
+	getValue(returnValue.max_stage_video_channel_users, jsonDataNew, "max_stage_video_channel_users");
+	getValue(returnValue.public_updates_channel_id, jsonDataNew, "public_updates_channel_id");
+	getValue(returnValue.description, jsonDataNew, "description");
+	getValue(returnValue.threads, jsonDataNew, "threads");
+	getValue(returnValue.channels, jsonDataNew, "channels");
+	getValue(returnValue.premium_subscription_count, jsonDataNew, "premium_subscription_count");
+	getValue(returnValue.approximate_presence_count, jsonDataNew, "approximate_presence_count");
+	getValue(returnValue.features, jsonDataNew, "features");
+	getValue(returnValue.stickers, jsonDataNew, "stickers");
+	getValue(returnValue.premium_progress_bar_enabled, jsonDataNew, "premium_progress_bar_enabled");
+	getValue(returnValue.members, jsonDataNew, "members");
+	getValue(returnValue.hub_type, jsonDataNew, "hub_type");
+	getValue(returnValue.approximate_member_count, jsonDataNew, "approximate_member_count");
+	getValue(returnValue.explicit_content_filter, jsonDataNew, "explicit_content_filter");
+	getValue(returnValue.max_video_channel_users, jsonDataNew, "max_video_channel_users");
+	getValue(returnValue.splash, jsonDataNew, "splash");
+	getValue(returnValue.banner, jsonDataNew, "banner");
+	getValue(returnValue.system_channel_id, jsonDataNew, "system_channel_id");
+	getValue(returnValue.widget_channel_id, jsonDataNew, "widget_channel_id");
+	getValue(returnValue.preferred_locale, jsonDataNew, "preferred_locale");
+	getValue(returnValue.system_channel_flags, jsonDataNew, "system_channel_flags");
+	getValue(returnValue.rules_channel_id, jsonDataNew, "rules_channel_id");
+	getValue(returnValue.roles, jsonDataNew, "roles");
+	getValue(returnValue.verification_level, jsonDataNew, "verification_level");
+	getValue(returnValue.permissions, jsonDataNew, "permissions");
+	getValue(returnValue.max_presences, jsonDataNew, "max_presences");
+	getValue(returnValue.discovery, jsonDataNew, "discovery");
+	getValue(returnValue.joined_at, jsonDataNew, "joined_at");
+	getValue(returnValue.member_count, jsonDataNew, "member_count");
+	getValue(returnValue.premium_tier, jsonDataNew, "premium_tier");
+	getValue(returnValue.owner_id, jsonDataNew, "owner_id");
+	getValue(returnValue.max_members, jsonDataNew, "max_members");
+	getValue(returnValue.afk_timeout, jsonDataNew, "afk_timeout");
+	getValue(returnValue.widget_enabled, jsonDataNew, "widget_enabled");
+	getValue(returnValue.region, jsonDataNew, "region");
+	getValue(returnValue.nsfw_level, jsonDataNew, "nsfw_level");
+	getValue(returnValue.mfa_level, jsonDataNew, "mfa_level");
+	getValue(returnValue.name, jsonDataNew, "name");
+	getValue(returnValue.icon, jsonDataNew, "icon");
+	getValue(returnValue.unavailable, jsonDataNew, "unavailable");
+	getValue(returnValue.id, jsonDataNew, "id");
+	getValue(returnValue.flags, jsonDataNew, "flags");
+	getValue(returnValue.large, jsonDataNew, "large");
+	getValue(returnValue.owner, jsonDataNew, "owner");
+	getValue(returnValue.nsfw, jsonDataNew, "nsfw");
+	getValue(returnValue.lazy, jsonDataNew, "lazy");
+}
+
+template<> void getValue(discord_message& returnValue, simdjson::ondemand::value jsonDataNew) {
+	getValue(returnValue.t, jsonDataNew, "t");
+	getValue(returnValue.d, jsonDataNew, "d");
+	getValue(returnValue.op, jsonDataNew, "op");
+	getValue(returnValue.s, jsonDataNew, "s");
+}
+
+	#define SIMD_PULL(x) \
 		{ \
-			ondemand::array newX = doc[#x].get_array().value(); \
-			ondemand::array newArray{}; \
-			ondemand::object newObject{}; \
-			for (ondemand::value value: newX) { \
+			simdjson::ondemand::array newX = doc[#x].get_array().value(); \
+			for (simdjson::ondemand::value value: newX) { \
 				test_struct newStruct{}; \
-				newObject = value.get_object(); \
-				newArray  = newObject["testInts"].get_array().value(); \
-				simdPullArray(newArray, newStruct.testInts); \
-				newArray = newObject["testDoubles"].get_array().value(); \
-				simdPullArray(newArray, newStruct.testDoubles); \
-				newArray = newObject["testStrings"].get_array().value(); \
-				simdPullArray(newArray, newStruct.testStrings); \
-				newArray = newObject["testUints"].get_array().value(); \
-				simdPullArray(newArray, newStruct.testUints); \
-				newArray = newObject["testBools"].get_array().value(); \
-				simdPullArray(newArray, newStruct.testBools); \
+				getValue(newStruct.testStrings, value, "testStrings"); \
+				getValue(newStruct.testUints, value, "testUints"); \
+				getValue(newStruct.testDoubles, value, "testDoubles"); \
+				getValue(newStruct.testInts, value, "testInts"); \
+				getValue(newStruct.testBools, value, "testBools"); \
 				obj.x.emplace_back(std::move(newStruct)); \
 			} \
 		}
 
-bool on_demand::readInOrder(Test<test_struct>& obj, const padded_string& json) {
-	ondemand::document doc = parser.iterate(json).value();
-	SIMD_Pull(a);
-	SIMD_Pull(b);
-	SIMD_Pull(c);
-	SIMD_Pull(d);
-	SIMD_Pull(e);
-	SIMD_Pull(f);
-	SIMD_Pull(g);
-	SIMD_Pull(h);
-	SIMD_Pull(i);
-	SIMD_Pull(j);
-	SIMD_Pull(k);
-	SIMD_Pull(l);
-	SIMD_Pull(m);
-	SIMD_Pull(n);
-	SIMD_Pull(o);
-	SIMD_Pull(p);
-	SIMD_Pull(q);
-	SIMD_Pull(r);
-	SIMD_Pull(s);
-	SIMD_Pull(t);
-	SIMD_Pull(u);
-	SIMD_Pull(v);
-	SIMD_Pull(w);
-	SIMD_Pull(x);
-	SIMD_Pull(y);
-	SIMD_Pull(z);
-	return false;
+	#define SIMD_PULL_ABC(x) \
+		{ \
+			simdjson::ondemand::array newX = doc[#x].get_array().value(); \
+			for (simdjson::ondemand::value value: newX) { \
+				test_struct newStruct{}; \
+				getValue(newStruct.testBools, value, "testBools"); \
+				getValue(newStruct.testInts, value, "testInts"); \
+				getValue(newStruct.testDoubles, value, "testDoubles"); \
+				getValue(newStruct.testUints, value, "testUints"); \
+				getValue(newStruct.testStrings, value, "testStrings"); \
+				obj.x.emplace_back(std::move(newStruct)); \
+			} \
+		}
+
+
+template<> void getValue<test<test_struct>>(test<test_struct>& obj, simdjson::ondemand::value doc) {
+	SIMD_PULL(a);
+	SIMD_PULL(b);
+	SIMD_PULL(c);
+	SIMD_PULL(d);
+	SIMD_PULL(e);
+	SIMD_PULL(f);
+	SIMD_PULL(g);
+	SIMD_PULL(h);
+	SIMD_PULL(i);
+	SIMD_PULL(j);
+	SIMD_PULL(k);
+	SIMD_PULL(l);
+	SIMD_PULL(m);
+	SIMD_PULL(n);
+	SIMD_PULL(o);
+	SIMD_PULL(p);
+	SIMD_PULL(q);
+	SIMD_PULL(r);
+	SIMD_PULL(s);
+	SIMD_PULL(t);
+	SIMD_PULL(u);
+	SIMD_PULL(v);
+	SIMD_PULL(w);
+	SIMD_PULL(x);
+	SIMD_PULL(y);
+	SIMD_PULL(z);
 }
 
-auto simdjsonSingleTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-	on_demand parser{};
+template<> void getValue<abc_test<test_struct>>(abc_test<test_struct>& obj, simdjson::ondemand::value doc) {
+	SIMD_PULL_ABC(z);
+	SIMD_PULL_ABC(y);
+	SIMD_PULL_ABC(x);
+	SIMD_PULL_ABC(w);
+	SIMD_PULL_ABC(v);
+	SIMD_PULL_ABC(u);
+	SIMD_PULL_ABC(t);
+	SIMD_PULL_ABC(s);
+	SIMD_PULL_ABC(r);
+	SIMD_PULL_ABC(q);
+	SIMD_PULL_ABC(p);
+	SIMD_PULL_ABC(o);
+	SIMD_PULL_ABC(n);
+	SIMD_PULL_ABC(m);
+	SIMD_PULL_ABC(l);
+	SIMD_PULL_ABC(k);
+	SIMD_PULL_ABC(j);
+	SIMD_PULL_ABC(i);
+	SIMD_PULL_ABC(h);
+	SIMD_PULL_ABC(g);
+	SIMD_PULL_ABC(f);
+	SIMD_PULL_ABC(e);
+	SIMD_PULL_ABC(d);
+	SIMD_PULL_ABC(c);
+	SIMD_PULL_ABC(b);
+	SIMD_PULL_ABC(a);
+}
 
-	results r{ "simdjson", "Single Test", "https://github.com/simdjson/simdjson", 1 };
-	Test<test_struct> uint64Test{};
+template<typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName>
+struct json_test_helper<json_library::simdjson, test_type::parse_and_serialize, test_data_type, minified, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		std::string buffer{ newBuffer };
 
-	r.json_read_byte_length = buffer.size();
-	double result{};
-	result = benchmark(
-		[&]() {
-			try {
-				parser.readInOrder(uint64Test, padded_string{ buffer });
-			} catch (std ::exception& error) {
-				std::cout << "Simdjson Error: " << error.what() << std::endl;
-			}
-		},
-		1);
+		results_data r{ static_cast<std::string>(simdjsonLibraryName), static_cast<std::string>(testName), static_cast<std::string>(simdjsonCommitUrl), iterations };
 
-	r.json_read = result;
-	buffer.clear();
-	r.rColor = "cadetblue";
-	r.wColor = "cornflowerblue";
-	if (doWePrint) {
-		r.print();
+		simdjson::ondemand::parser parser{};
+		auto readSize = buffer.size();
+		auto readResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), simdjsonLibraryName, "cornflowerblue", iterations>(
+				[&]() {
+					test_data_type testData{};
+					try {
+						getValue(testData, parser.iterate(buffer).value());
+						bnch_swt::doNotOptimizeAway(testData);
+					} catch (std ::exception& error) {
+						std::cout << "Simdjson Error: " << error.what() << std::endl;
+					}
+				});
+
+		r.readResult = result<result_type::read>{ "cadetblue", readSize, readResult };
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-simdjson.json" };
+		fileLoader.saveFile(buffer);
+		if (doWePrint) {
+			r.print();
+		}
+
+		return r;
 	}
-
-	return r;
-}
-
-auto simdjsonTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-	on_demand parser{};
-
-	results r{ "simdjson", "Multi Test", "https://github.com/simdjson/simdjson", iterations };
-	Test<test_struct> uint64Test{};
-
-	r.json_read_byte_length = buffer.size();
-	double result{};
-	result = benchmark(
-		[&]() {
-			try {
-				parser.readInOrder(uint64Test, padded_string{ buffer });
-			} catch (std ::exception& error) {
-				std::cout << "Simdjson Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read = result;
-	r.rColor	= "cadetblue";
-	r.wColor	= "cornflowerblue";
-	buffer.clear();
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-struct on_demand_abc {
-	bool readOutOfOrder(AbcTest<test_struct>& obj, const padded_string& json);
-
-  protected:
-	ondemand::parser parser{};
 };
 
-bool on_demand_abc::readOutOfOrder(AbcTest<test_struct>& obj, const padded_string& json) {
-	ondemand::document doc = parser.iterate(json).value();
-	SIMD_Pull(z);
-	SIMD_Pull(y);
-	SIMD_Pull(x);
-	SIMD_Pull(w);
-	SIMD_Pull(v);
-	SIMD_Pull(u);
-	SIMD_Pull(t);
-	SIMD_Pull(s);
-	SIMD_Pull(r);
-	SIMD_Pull(q);
-	SIMD_Pull(p);
-	SIMD_Pull(o);
-	SIMD_Pull(n);
-	SIMD_Pull(m);
-	SIMD_Pull(l);
-	SIMD_Pull(k);
-	SIMD_Pull(j);
-	SIMD_Pull(i);
-	SIMD_Pull(h);
-	SIMD_Pull(g);
-	SIMD_Pull(f);
-	SIMD_Pull(e);
-	SIMD_Pull(d);
-	SIMD_Pull(c);
-	SIMD_Pull(b);
-	SIMD_Pull(a);
-	return false;
-}
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::simdjson, test_type::minify, std::string, false, iterations, testName> {
+	static auto run(const std::string& newBuffer, bool doWePrint = true) {
+		std::string buffer{ newBuffer };
 
-template<typename value_type> value_type getValue(simdjson::ondemand::value value, const std::string& key);
+		results_data r{ static_cast<std::string>(simdjsonLibraryName), static_cast<std::string>(testName), static_cast<std::string>(simdjsonCommitUrl), iterations };
 
-template<typename value_type> value_type getValue(simdjson::ondemand::value value);
+		simdjson::dom::parser parser{};
+		std::string newerBuffer{};
 
-template<> std::string getValue<std::string>(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::value field;
-	if (!value[key].get(field)) {
-		std::string_view result;
-		simdjson::error_code error{};
-		field.get_string().tie(result, error);
-		return static_cast<std::string>(result);
+		auto writeResult =
+			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), simdjsonLibraryName, "cornflowerblue", iterations>(
+				[&]() {
+					try {
+						newerBuffer = simdjson::minify(parser.parse(buffer));
+						bnch_swt::doNotOptimizeAway(newerBuffer);
+					} catch (std ::exception& error) {
+						std::cout << "Simdjson Error: " << error.what() << std::endl;
+					}
+					return;
+				});
+
+		file_loader fileLoader{ basePath + "/" + static_cast<std::string>(testName) + "-simdjson.json" };
+		fileLoader.saveFile(newerBuffer);
+		r.writeResult = result<result_type::write>{ "cornflowerblue", newerBuffer.size(), writeResult };
+
+		if (doWePrint) {
+			r.print();
+		}
+
+		return r;
 	}
-	return "";
-}
-
-template<> int64_t getValue<int64_t>(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::value field;
-	if (!value[key].get(field)) {
-		int64_t result;
-		simdjson::error_code error{};
-		field.get_int64().tie(result, error);
-		return result;
-	}
-	return 0;
-}
-
-template<> uint64_t getValue<uint64_t>(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::value field;
-	if (!value[key].get(field)) {
-		uint64_t result;
-		simdjson::error_code error{};
-		field.get_uint64().tie(result, error);
-		return result;
-	}
-	return 0;
-}
-
-template<> double getValue<double>(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::value field;
-	if (!value[key].get(field)) {
-		double result;
-		simdjson::error_code error{};
-		field.get_double().tie(result, error);
-		return result;
-	}
-	return 0;
-}
-
-template<> bool getValue<bool>(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::value field;
-	if (!value[key].get(field)) {
-		bool result;
-		simdjson::error_code error{};
-		field.get_bool().tie(result, error);
-		return result;
-	}
-	return false;
-}
-
-simdjson::ondemand::value getValue(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::value field;
-	if (!value[key].get(field)) {
-		return field;
-	} else {
-		throw std::runtime_error{ "Sorry, but there was no value with the field name: " + key };
-	}
-	return {};
-}
-
-simdjson::ondemand::array getArray(simdjson::ondemand::value value, const std::string& key) {
-	simdjson::ondemand::array field;
-	if (!value[key].get(field)) {
-		return field;
-	} else {
-		throw std::runtime_error{ "Sorry, but there was no value with the field name: " + key };
-	}
-	return {};
-}
-
-template<typename value_type> std::vector<value_type> getValues(simdjson::ondemand::value value) {
-	std::vector<value_type> roles;
-	for (simdjson::ondemand::value role: value) {
-		value_type roleValue;
-		role.get(roleValue);
-		roles.emplace_back(roleValue);
-	}
-	return roles;
-}
-
-template<> std::vector<std::string> getValues<std::string>(simdjson::ondemand::value value) {
-	std::vector<std::string> roles;
-	for (simdjson::ondemand::value role: value) {
-		std::string_view roleValue;
-		role.get(roleValue);
-		roles.emplace_back(static_cast<std::string>(roleValue));
-	}
-	return roles;
-}
-
-template<> search_metadata getValue<search_metadata>(simdjson::ondemand::value jsonData) {
-	search_metadata metadata;
-	jsonData = getValue(jsonData, "search_metadata");
-
-	metadata.completedIn = getValue<double>(jsonData, "completed_in");
-	metadata.maxId		 = getValue<int64_t>(jsonData, "max_id");
-	metadata.maxIdStr	 = getValue<std::string>(jsonData, "max_id_str");
-	metadata.nextResults = getValue<std::string>(jsonData, "next_results");
-	metadata.query		 = getValue<std::string>(jsonData, "query");
-	metadata.refreshUrl	 = getValue<std::string>(jsonData, "refresh_url");
-	metadata.count		 = getValue<int64_t>(jsonData, "count");
-	metadata.sinceId	 = getValue<int64_t>(jsonData, "since_id");
-	metadata.sinceIdStr	 = getValue<std::string>(jsonData, "since_id_str");
-
-	return metadata;
-}
-
-template<> hashtag getValue<hashtag>(simdjson::ondemand::value jsonData) {
-	hashtag tag;
-
-	tag.text	= getValue<std::string>(jsonData, "text");
-	tag.indices = getValues<int64_t>(jsonData["indices"]);
-
-	return tag;
-}
-
-template<> large getValue<large>(simdjson::ondemand::value jsonData) {
-	large size;
-
-	size.w		= getValue<uint64_t>(jsonData, "w");
-	size.h		= getValue<uint64_t>(jsonData, "h");
-	size.resize = getValue<std::string>(jsonData, "resize");
-
-	return size;
-}
-
-template<> sizes getValue<sizes>(simdjson::ondemand::value jsonData) {
-	sizes imageSizes;
-
-	imageSizes.medium	= getValue<large>(jsonData["medium"]);
-	imageSizes.small	= getValue<large>(jsonData["small"]);
-	imageSizes.thumb	= getValue<large>(jsonData["thumb"]);
-	imageSizes.largeVal = getValue<large>(jsonData["large"]);
-
-	return imageSizes;
-}
-
-template<> media getValue<media>(simdjson::ondemand::value jsonData) {
-	media mediaItem;
-
-	mediaItem.id				= getValue<double>(jsonData, "id");
-	mediaItem.idStr				= getValue<std::string>(jsonData, "id_str");
-	mediaItem.indices			= getValues<int64_t>(jsonData["indices"]);
-	mediaItem.mediaUrl			= getValue<std::string>(jsonData, "media_url");
-	mediaItem.mediaUrlHttps		= getValue<std::string>(jsonData, "media_url_https");
-	mediaItem.displayUrl		= getValue<std::string>(jsonData, "display_url");
-	mediaItem.expandedUrl		= getValue<std::string>(jsonData, "expanded_url");
-	mediaItem.type				= getValue<std::string>(jsonData, "type");
-	mediaItem.sizesVal			= getValue<sizes>(jsonData["sizes"]);
-	mediaItem.sourceStatusId	= getValue<double>(jsonData, "source_status_id");
-	mediaItem.sourceStatusIdStr = getValue<std::string>(jsonData, "source_status_id_str");
-
-	return mediaItem;
-}
-
-template<> url getValue<url>(simdjson::ondemand::value jsonData) {
-	url urlData;
-
-	urlData.expandedUrl = getValue<std::string>(jsonData, "expanded_url");
-	urlData.displayUrl	= getValue<std::string>(jsonData, "display_url");
-	urlData.indices		= getValues<int64_t>(jsonData["indices"]);
-
-	return urlData;
-}
-
-template<> user_mention getValue<user_mention>(simdjson::ondemand::value jsonData) {
-	user_mention mention;
-
-	mention.screenName = getValue<std::string>(jsonData, "screen_name");
-	mention.name	   = getValue<std::string>(jsonData, "name");
-	mention.id		   = getValue<int64_t>(jsonData, "id");
-	mention.idStr	   = getValue<std::string>(jsonData, "id_str");
-	mention.indices	   = getValues<int64_t>(jsonData["indices"]);
-
-	return mention;
-}
-
-template<> status_entities getValue<status_entities>(simdjson::ondemand::value jsonData) {
-	status_entities entities;
-	auto newArray = getArray(jsonData, "hashtags");
-	for (auto value: newArray) {
-		entities.hashtags.emplace_back(getValue<hashtag>(value.value()));
-	}
-	newArray = getArray(jsonData, "urls");
-	for (auto value: newArray) {
-		entities.urls.emplace_back(getValue<url>(value.value()));
-	}
-	newArray = getArray(jsonData, "user_mentions");
-	for (auto value: newArray) {
-		entities.userMentions.emplace_back(getValue<user_mention>(value.value()));
-	}
-
-	entities.symbols = getValues<std::string>(jsonData["symbols"]);
-
-	return entities;
-}
-
-template<> metadata getValue<metadata>(simdjson::ondemand::value jsonData) {
-	metadata meta;
-
-	meta.resultType		 = getValue<std::string>(jsonData, "result_type");
-	meta.isoLanguageCode = getValue<std::string>(jsonData, "iso_language_code");
-
-	return meta;
-}
-
-template<> description getValue<description>(simdjson::ondemand::value jsonData) {
-	description desc;
-
-	for (auto value: jsonData["urls"].get_array()) {
-		desc.urls.emplace_back(getValue<url>(value.value()));
-	}
-
-	return desc;
-}
-
-template<> user_entities getValue<user_entities>(simdjson::ondemand::value jsonData) {
-	user_entities userEnt;
-
-	userEnt.descriptionVal = getValue<description>(jsonData["description"]);
-
-	return userEnt;
-}
-
-template<> user getValue<user>(simdjson::ondemand::value jsonData) {
-	user userData;
-
-	userData.id								= getValue<int64_t>(jsonData, "id");
-	userData.idStr							= getValue<std::string>(jsonData, "id_str");
-	userData.name							= getValue<std::string>(jsonData, "name");
-	userData.screenName						= getValue<std::string>(jsonData, "screen_name");
-	userData.location						= getValue<std::string>(jsonData, "location");
-	userData.description					= getValue<std::string>(jsonData, "description");
-	userData.entities						= getValue<user_entities>(jsonData["entities"]);
-	userData.userProtected					= getValue<bool>(jsonData, "protected");
-	userData.followersCount					= getValue<int64_t>(jsonData, "followers_count");
-	userData.friendsCount					= getValue<int64_t>(jsonData, "friends_count");
-	userData.listedCount					= getValue<int64_t>(jsonData, "listed_count");
-	userData.createdAt						= getValue<std::string>(jsonData, "created_at");
-	userData.favouritesCount				= getValue<int64_t>(jsonData, "favourites_count");
-	userData.geoEnabled						= getValue<bool>(jsonData, "geo_enabled");
-	userData.verified						= getValue<bool>(jsonData, "verified");
-	userData.statusesCount					= getValue<int64_t>(jsonData, "statuses_count");
-	userData.lang							= getValue<std::string>(jsonData, "lang");
-	userData.contributorsEnabled			= getValue<bool>(jsonData, "contributors_enabled");
-	userData.isTranslator					= getValue<bool>(jsonData, "is_translator");
-	userData.isTranslationEnabled			= getValue<bool>(jsonData, "is_translation_enabled");
-	userData.profileBackgroundColor			= getValue<std::string>(jsonData, "profile_background_color");
-	userData.profileBackgroundImageUrl		= getValue<std::string>(jsonData, "profile_background_image_url");
-	userData.profileBackgroundImageUrlHttps = getValue<std::string>(jsonData, "profile_background_image_url_https");
-	userData.profileBackgroundTile			= getValue<bool>(jsonData, "profile_background_tile");
-	userData.profileImageUrl				= getValue<std::string>(jsonData, "profile_image_url");
-	userData.profileImageUrlHttps			= getValue<std::string>(jsonData, "profile_image_url_https");
-	userData.profileBannerUrl				= getValue<std::string>(jsonData, "profile_banner_url");
-	userData.profileLinkColor				= getValue<std::string>(jsonData, "profile_link_color");
-	userData.profileSidebarBorderColor		= getValue<std::string>(jsonData, "profile_sidebar_border_color");
-	userData.profileSidebarFillColor		= getValue<std::string>(jsonData, "profile_sidebar_fill_color");
-	userData.profileTextColor				= getValue<std::string>(jsonData, "profile_text_color");
-	userData.profileUseBackgroundImage		= getValue<bool>(jsonData, "profile_use_background_image");
-	userData.defaultProfile					= getValue<bool>(jsonData, "default_profile");
-	userData.defaultProfileImage			= getValue<bool>(jsonData, "default_profile_image");
-	userData.following						= getValue<bool>(jsonData, "following");
-	userData.followRequestSent				= getValue<bool>(jsonData, "follow_request_sent");
-	userData.notifications					= getValue<bool>(jsonData, "notifications");
-
-	return userData;
-}
-
-template<> status getValue<status>(simdjson::ondemand::value jsonData) {
-	status statusData;
-
-	statusData.metadataVal		 = getValue<metadata>(jsonData["metadata"]);
-	statusData.createdAt		 = getValue<std::string>(jsonData, "created_at");
-	statusData.id				 = getValue<double>(jsonData, "id");
-	statusData.idStr			 = getValue<std::string>(jsonData, "id_str");
-	statusData.text				 = getValue<std::string>(jsonData, "text");
-	statusData.source			 = getValue<std::string>(jsonData, "source");
-	statusData.truncated		 = getValue<bool>(jsonData, "truncated");
-	statusData.userVal			 = getValue<user>(jsonData["user"]);
-	statusData.retweetCount		 = getValue<int64_t>(jsonData, "retweet_count");
-	statusData.favoriteCount	 = getValue<int64_t>(jsonData, "favorite_count");
-	statusData.entities			 = getValue<status_entities>(jsonData["entities"]);
-	statusData.favorited		 = getValue<bool>(jsonData, "favorited");
-	statusData.retweeted		 = getValue<bool>(jsonData, "retweeted");
-	statusData.lang				 = getValue<std::string>(jsonData, "lang");
-	statusData.possiblySensitive = getValue<bool>(jsonData, "possibly_sensitive");
-
-	return statusData;
-}
-
-template<> twitter_message getValue<twitter_message>(simdjson::ondemand::value jsonData) {
-	twitter_message message;
-	auto arrayNew = getArray(jsonData, "statuses");
-	for (auto value: arrayNew) {
-		message.statuses.emplace_back(getValue<status>(value.value()));
-	}
-
-	message.searchMetadata = getValue<search_metadata>(jsonData);
-
-	return message;
-}
-
-template<> user_data getValue<user_data>(simdjson::ondemand::value jsonData) {
-	user_data userData;
-
-	userData.avatarDecoration = getValue<std::string>(jsonData, "avatar_decoration");
-	userData.discriminator	  = getValue<std::string>(jsonData, "discriminator");
-	userData.globalName		  = getValue<std::string>(jsonData, "global_name");
-	userData.userName		  = getValue<std::string>(jsonData, "user_name");
-	userData.accentColor	  = getValue<uint64_t>(jsonData, "accent_color");
-	userData.premiumType	  = getValue<uint64_t>(jsonData, "premium_type");
-	userData.publicFlags	  = getValue<uint64_t>(jsonData, "public_flags");
-	userData.locale			  = getValue<std::string>(jsonData, "locale");
-	userData.banner			  = getValue<std::string>(jsonData, "banner");
-	userData.avatar			  = getValue<std::string>(jsonData, "avatar");
-	userData.email			  = getValue<std::string>(jsonData, "email");
-	userData.mfaEnabled		  = getValue<bool>(jsonData, "mfa_enabled");
-	userData.id				  = getValue<std::string>(jsonData, "id");
-	userData.flags			  = getValue<uint64_t>(jsonData, "flags");
-	userData.verified		  = getValue<bool>(jsonData, "verified");
-	userData.system			  = getValue<bool>(jsonData, "system");
-	userData.bot			  = getValue<bool>(jsonData, "bot");
-
-	return userData;
-}
-
-template<> guild_scheduled_event_data getValue<guild_scheduled_event_data>(simdjson::ondemand::value jsonData) {
-	guild_scheduled_event_data eventData;
-
-	eventData.scheduledStartTime = getValue<std::string>(jsonData, "scheduled_start_time");
-	eventData.scheduledEndTime	 = getValue<std::string>(jsonData, "scheduled_end_time");
-	eventData.description		 = getValue<std::string>(jsonData, "description");
-	eventData.entityMetadata	 = getValue<uint64_t>(jsonData, "entity_metadata");
-	eventData.creatorId			 = getValue<std::string>(jsonData, "creator_id");
-	eventData.channelId			 = getValue<std::string>(jsonData, "channel_id");
-	eventData.privacyLevel		 = getValue<uint64_t>(jsonData, "privacy_level");
-	eventData.entityId			 = getValue<std::string>(jsonData, "entity_id");
-	eventData.guildId			 = getValue<std::string>(jsonData, "guild_id");
-	eventData.entityType		 = getValue<uint64_t>(jsonData, "entity_type");
-	eventData.userCount			 = getValue<uint64_t>(jsonData, "user_count");
-	eventData.creator			 = getValue<user_data>(jsonData["creator"]);
-	eventData.name				 = getValue<std::string>(jsonData, "name");
-	eventData.status			 = getValue<uint64_t>(jsonData, "status");
-	eventData.id				 = getValue<std::string>(jsonData, "id");
-
-	return eventData;
-}
-
-template<> channel_data getValue<channel_data>(simdjson::ondemand::value jsonData) {
-	channel_data channelData;
-
-	channelData.defaultThreadRateLimitPerUser = getValue<uint64_t>(jsonData, "default_thread_rate_limit_per_user");
-
-	channelData.defaultAutoArchiveDuration = getValue<uint64_t>(jsonData, "default_auto_archive_duration");
-
-	channelData.lastPinTimestamp = getValue<std::string>(jsonData, "last_pin_timestamp");
-	channelData.totalMessageSent = getValue<uint64_t>(jsonData, "total_message_sent");
-	channelData.rateLimitPerUser = getValue<uint64_t>(jsonData, "rate_limit_per_user");
-	channelData.videoQualityMode = getValue<uint64_t>(jsonData, "video_quality_mode");
-	channelData.lastMessageId	 = getValue<std::string>(jsonData, "last_message_id");
-	channelData.applicationId	 = getValue<std::string>(jsonData, "application_id");
-	channelData.permissions		 = getValue<std::string>(jsonData, "permissions");
-	channelData.rtcRegion		 = getValue<std::string>(jsonData, "rtc_region");
-	channelData.messageCount	 = getValue<uint64_t>(jsonData, "message_count");
-	channelData.memberCount		 = getValue<uint64_t>(jsonData, "member_count");
-	channelData.parentId		 = getValue<std::string>(jsonData, "parent_id");
-	channelData.ownerId			 = getValue<std::string>(jsonData, "owner_id");
-	channelData.guildId			 = getValue<std::string>(jsonData, "guild_id");
-	channelData.userLimit		 = getValue<uint64_t>(jsonData, "user_limit");
-	channelData.topic			 = getValue<std::string>(jsonData, "topic");
-	channelData.position		 = getValue<uint64_t>(jsonData, "position");
-	channelData.bitrate			 = getValue<uint64_t>(jsonData, "bitrate");
-	channelData.name			 = getValue<std::string>(jsonData, "name");
-	channelData.icon			 = getValue<std::string>(jsonData, "icon");
-	channelData.id				 = getValue<std::string>(jsonData, "id");
-	channelData.flags			 = getValue<uint64_t>(jsonData, "flags");
-	channelData.type			 = getValue<uint64_t>(jsonData, "type");
-	channelData.managed			 = getValue<bool>(jsonData, "managed");
-	channelData.nsfw			 = getValue<bool>(jsonData, "nsfw");
-
-	return channelData;
-}
-
-template<> role_data getValue<role_data>(simdjson::ondemand::value jsonData) {
-	role_data roleData;
-
-	roleData.unicodeEmoji = getValue<std::string>(jsonData, "unicode_emoji");
-	roleData.permissions  = getValue<std::string>(jsonData, "permissions");
-	roleData.position	  = getValue<uint64_t>(jsonData, "position");
-	roleData.name		  = getValue<std::string>(jsonData, "name");
-	roleData.icon		  = getValue<std::string>(jsonData, "icon");
-	roleData.mentionable  = getValue<bool>(jsonData, "mentionable");
-	roleData.color		  = getValue<uint64_t>(jsonData, "color");
-	roleData.id			  = getValue<std::string>(jsonData, "id");
-	roleData.flags		  = getValue<uint64_t>(jsonData, "flags");
-	roleData.managed	  = getValue<bool>(jsonData, "managed");
-	roleData.hoist		  = getValue<bool>(jsonData, "hoist");
-
-	return roleData;
-}
-
-template<> guild_member_data getValue<guild_member_data>(simdjson::ondemand::value jsonData) {
-	guild_member_data memberData;
-
-	memberData.communicationDisabledUntil = getValue<std::string>(jsonData, "communication_disabled_until");
-
-	for (auto role: jsonData["roles"]) {
-		memberData.roles.emplace_back(role.get_string().value());
-	}
-
-	memberData.premiumSince = getValue<std::string>(jsonData, "premium_since");
-	memberData.permissions	= getValue<std::string>(jsonData, "permissions");
-	memberData.joinedAt		= getValue<std::string>(jsonData, "joined_at");
-	memberData.guildId		= getValue<std::string>(jsonData, "guild_id");
-	memberData.avatar		= getValue<std::string>(jsonData, "avatar");
-	memberData.nick			= getValue<std::string>(jsonData, "nick");
-	memberData.user			= getValue<user_data>(jsonData["user"]);
-	memberData.flags		= getValue<uint64_t>(jsonData, "flags");
-	memberData.pending		= getValue<bool>(jsonData, "pending");
-	memberData.deaf			= getValue<bool>(jsonData, "deaf");
-	memberData.mute			= getValue<bool>(jsonData, "mute");
-
-	return memberData;
-}
-
-template<> guild_data getValue<guild_data>(simdjson::ondemand::value jsonData) {
-	guild_data guildData;
-
-	// Parsing guildScheduledEvents as an array of guild_scheduled_event_data
-	for (auto event: jsonData["guild_scheduled_events"]) {
-		guildData.guildScheduledEvents.emplace_back(getValue<guild_scheduled_event_data>(event.value()));
-	}
-
-	// Parsing members as an array of guild_member_data
-	for (auto member: jsonData["members"]) {
-		guildData.members.emplace_back(getValue<guild_member_data>(member.value()));
-	}
-
-	guildData.defaultMessageNotifications = getValue<uint64_t>(jsonData, "default_message_notifications");
-
-	// Parsing channels as an array of channel_data
-	for (auto channel: jsonData["channels"]) {
-		guildData.channels.emplace_back(getValue<channel_data>(channel.value()));
-	}
-
-	guildData.maxStageVideoChannelUsers = getValue<uint64_t>(jsonData, "max_stage_video_channel_users");
-	guildData.publicUpdatesChannelId	= getValue<std::string>(jsonData, "public_updates_channel_id");
-	guildData.premiumSubscriptionCount	= getValue<uint64_t>(jsonData, "premium_subscription_count");
-
-	// Parsing features as an array of strings
-	for (auto feature: jsonData["features"]) {
-		guildData.features.emplace_back(feature.get_string().value());
-	}
-
-	guildData.approximatePresenceCount	= getValue<uint64_t>(jsonData, "approximate_presence_count");
-	guildData.safetyAlertsChannelId		= getValue<std::string>(jsonData, "safety_alerts_channel_id");
-	guildData.approximateMemberCount	= getValue<uint64_t>(jsonData, "approximate_member_count");
-	guildData.premiumProgressBarEnabled = getValue<bool>(jsonData, "premium_progress_bar_enabled");
-	guildData.explicitContentFilter		= getValue<uint64_t>(jsonData, "explicit_content_filter");
-	guildData.maxVideoChannelUsers		= getValue<uint64_t>(jsonData, "max_video_channel_users");
-
-	// Parsing roles as an array of role_data
-	for (auto role: jsonData["roles"]) {
-		guildData.roles.emplace_back(getValue<role_data>(role.value()));
-	}
-
-	guildData.systemChannelId	 = getValue<std::string>(jsonData, "system_channel_id");
-	guildData.widgetChannelId	 = getValue<std::string>(jsonData, "widget_channel_id");
-	guildData.preferredLocale	 = getValue<std::string>(jsonData, "preferred_locale");
-	guildData.discoverySplash	 = getValue<std::string>(jsonData, "discovery_splash");
-	guildData.systemChannelFlags = getValue<uint64_t>(jsonData, "system_channel_flags");
-	guildData.rulesChannelId	 = getValue<std::string>(jsonData, "rules_channel_id");
-	guildData.verificationLevel	 = getValue<uint64_t>(jsonData, "verification_level");
-	guildData.applicationId		 = getValue<std::string>(jsonData, "application_id");
-	guildData.vanityUrlCode		 = getValue<std::string>(jsonData, "vanity_url_code");
-	guildData.afkChannelId		 = getValue<std::string>(jsonData, "afk_channel_id");
-	guildData.description		 = getValue<std::string>(jsonData, "description");
-	guildData.permissions		 = getValue<std::string>(jsonData, "permissions");
-	guildData.maxPresences		 = getValue<uint64_t>(jsonData, "max_presences");
-	guildData.discovery			 = getValue<std::string>(jsonData, "discovery");
-	guildData.memberCount		 = getValue<uint64_t>(jsonData, "member_count");
-	guildData.joinedAt			 = getValue<std::string>(jsonData, "joined_at");
-	guildData.premiumTier		 = getValue<uint64_t>(jsonData, "premium_tier");
-	guildData.ownerId			 = getValue<std::string>(jsonData, "owner_id");
-	guildData.maxMembers		 = getValue<uint64_t>(jsonData, "max_members");
-	guildData.afkTimeout		 = getValue<uint64_t>(jsonData, "afk_timeout");
-	guildData.splash			 = getValue<std::string>(jsonData, "splash");
-	guildData.banner			 = getValue<std::string>(jsonData, "banner");
-	guildData.widgetEnabled		 = getValue<bool>(jsonData, "widget_enabled");
-	guildData.nsfwLevel			 = getValue<uint64_t>(jsonData, "nsfw_level");
-	guildData.mfaLevel			 = getValue<uint64_t>(jsonData, "mfa_level");
-	guildData.name				 = getValue<std::string>(jsonData, "name");
-	guildData.icon				 = getValue<std::string>(jsonData, "icon");
-	guildData.unavailable		 = getValue<bool>(jsonData, "unavailable");
-	guildData.id				 = getValue<std::string>(jsonData, "id");
-	guildData.flags				 = getValue<uint64_t>(jsonData, "flags");
-	guildData.large				 = getValue<bool>(jsonData, "large");
-	guildData.owner				 = getValue<bool>(jsonData, "owner");
-
-	return guildData;
-}
-
-template<> discord_message getValue<discord_message>(simdjson::ondemand::value jsonData) {
-	discord_message message;
-
-	message.t = getValue<std::string>(jsonData, "t");
-
-	message.s = getValue<uint64_t>(jsonData, "s");
-
-	message.op = getValue<uint64_t>(jsonData, "op");
-
-	message.d = getValue<guild_data>(jsonData["d"]);
-
-	return message;
-}
-
-auto simdjsonMinifyTest(jsonifier::string_view discordData, bool doWePrint = true) {
-	std::string buffer{ discordData };
-
-	results r{ "simdjson", "Minify Test", "https://github.com/simdjson/simdjson", iterations };
-	dom::parser parser{};
-	auto result = benchmark(
-		[&]() {
-			auto doc	  = parser.parse(buffer);
-			auto newValue = simdjson::minify(doc);
-		},
-		iterations);
-
-	r.json_write = result;
-
-	r.json_write_byte_length = buffer.size();
-	r.rColor				 = "cadetblue";
-	r.wColor				 = "cornflowerblue";
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto simdjsonTwitterTest(jsonifier::string_view discordData, bool doWePrint = true) {
-	std::string buffer{ discordData };
-
-	results r{ "simdjson", "Twitter Test", "https://github.com/simdjson/simdjson", iterations };
-	twitter_message message{};
-	simdjson::ondemand::parser parser{};
-	auto result = benchmark(
-		[&]() {
-			auto doc = parser.iterate(buffer);
-			message	 = getValue<twitter_message>(doc.value());
-		},
-		iterations);
-
-	r.json_read = result;
-
-	r.json_read_byte_length = buffer.size();
-	r.rColor				= "cadetblue";
-	r.wColor				= "cornflowerblue";
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
-
-auto simdjsonDiscordTest(jsonifier::string_view discordData, bool doWePrint = true) {
-	std::string buffer{ discordData };
-
-	AbcTest<test_struct> obj{};
-
-	results r{ "simdjson", "Discord Test", "https://github.com/simdjson/simdjson", iterations };
-
-	simdjson::ondemand::parser parser;
-
-	discord_message welcomeData;
-
-	auto result = benchmark(
-		[&]() {
-			try {
-				auto doc	= parser.iterate(buffer);
-				welcomeData = getValue<discord_message>(doc.value());
-			} catch (std ::exception& error) {
-				std::cout << "Simdjson Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read_byte_length = buffer.size();
-	r.json_read				= result;
-	r.rColor				= "cadetblue";
-	r.wColor				= "cornflowerblue";
-	if (doWePrint) {
-		r.print();
-	}
-	return r;
-}
-
-auto simdjsonAbcTest(jsonifier::string_view bufferNew, bool doWePrint = true) {
-	std::string buffer{ bufferNew };
-	on_demand_abc parser{};
-
-	AbcTest<test_struct> obj{};
-
-	results r{ "simdjson", "Abc Test", "https://github.com/simdjson/simdjson", iterations };
-	double result{};
-
-	result = benchmark(
-		[&]() {
-			try {
-				parser.readOutOfOrder(obj, padded_string{ buffer });
-			} catch (std ::exception& error) {
-				std::cout << "Simdjson Error: " << error.what() << std::endl;
-			}
-		},
-		iterations);
-
-	r.json_read_byte_length = buffer.size();
-	r.json_read				= result;
-	r.rColor				= "cadetblue";
-	r.wColor				= "cornflowerblue";
-	if (doWePrint) {
-		r.print();
-	}
-
-	return r;
-}
+};
 #endif
+
 std::string table_header = R"(
-| Library | Read (MB/s) | Write (MB/s) |
-| ------------------------------------------------- | ---------- | ----------- |)";
+| Library | Read (MB/s) | ReadLength (Bytes) | ReadTime (ns) | ReadMape (%) | Write (MB/s) | WriteLength (Bytes) | WriteTime (ns) | WriteMape (%) |
+| ------------------------------------------------- | ---------- | ----------- | ---------- | ----------- | ---------- | ---------- | ---------- | ---------- |)";
 
-template<typename function_type> std::string unitTest(function_type&& function, std::string testName) {
-	bool result{ function() };
-	if (result) {
-		return testName + " - Success.\n";
-	} else {
-		return testName + " - Failed.\n";
-	}
-}
+std::string read_table_header = R"(
+| Library | Read (MB/s) | ReadLength (Bytes) | ReadTime (ns) | ReadMape (%) |
+| ------------------------------------------------- | ---------- | ----------- | ---------- | ----------- |)";
 
-struct doubleTest {
-	std::vector<double> doubles{ 0.0454545, 0.0, 22424.3434234234 };
-};
+std::string write_table_header = R"(
+| Library | Write (MB/s) | WriteLength (Bytes) | WriteTime (ns) | WriteMape (%) |
+| ------------------------------------------------- | ---------- | ----------- | ---------- | ----------- |)";
 
-template<> struct jsonifier::core<doubleTest> {
-	using value_type				 = doubleTest;
-	static constexpr auto parseValue = createValue("doubles", &value_type::doubles);
-};
+template<test_type type, typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName> struct json_tests_helper;
 
-test_results multiTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Multi Test";
+template<test_type type, typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName> struct json_tests_helper {
+	static test_results run(const std::string& jsonDataNew) {
+		jsonifier::vector<results_data> resultsNew{};
+		test_results jsonResults{};
+		jsonResults.testName = static_cast<std::string>(testName);
 #if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		simdjsonTest(jsonData, false);
-	}
-	resultsNew.emplace_back(simdjsonTest(jsonData));
-	for (uint32_t x = 0; x < 2; ++x) {
-		glazeTest(jsonData, false);
-	}
-	resultsNew.emplace_back(glazeTest(jsonData));
+		resultsNew.emplace_back(json_test_helper<json_library::simdjson, type, test_data_type, minified, iterations, testName>::run(jsonDataNew, true));
+		resultsNew.emplace_back(json_test_helper<json_library::glaze, type, test_data_type, minified, iterations, testName>::run(jsonDataNew, true));
 #endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierTest(jsonData));
+		resultsNew.emplace_back(json_test_helper<json_library::jsonifier, type, test_data_type, minified, iterations, testName>::run(jsonDataNew, true));
 
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-}
-
-test_results twitterTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Twitter Test";
-#if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		simdjsonTwitterTest(jsonData, false);
-	}
-	resultsNew.emplace_back(simdjsonTwitterTest(jsonData));
-	for (uint32_t x = 0; x < 2; ++x) {
-		glazeTwitterTest(jsonData, false);
-	}
-	resultsNew.emplace_back(glazeTwitterTest(jsonData));
-#endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierTwitterTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierTwitterTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-}
-
-test_results abcTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Abc Test";
-#if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		simdjsonAbcTest(jsonData, false);
-	}
-	resultsNew.emplace_back(simdjsonAbcTest(jsonData));
-	for (uint32_t x = 0; x < 2; ++x) {
-		glazeAbcTest(jsonData, false);
-	}
-	resultsNew.emplace_back(glazeAbcTest(jsonData));
-#endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierAbcTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierAbcTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-}
-
-test_results discordTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Discord Test";
-#if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		simdjsonDiscordTest(jsonData, false);
-	}
-	resultsNew.emplace_back(simdjsonDiscordTest(jsonData));
-	for (uint32_t x = 0; x < 2; ++x) {
-		glazeDiscordTest(jsonData, false);
-	}
-	resultsNew.emplace_back(glazeDiscordTest(jsonData));
-#endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierDiscordTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierDiscordTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		table += resultsNew[x].jsonStats();
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-}
-
-test_results singleTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Single Test";
-#if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		simdjsonSingleTest(jsonData, false);
-	}
-	resultsNew.emplace_back(simdjsonSingleTest(jsonData));
-	for (uint32_t x = 0; x < 2; ++x) {
-		glazeSingleTest(jsonData, false);
-	}
-	resultsNew.emplace_back(glazeSingleTest(jsonData));
-#endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierSingleTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierSingleTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-};
-
-test_results minifyTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Minify Test";
-#if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		simdjsonMinifyTest(jsonData, false);
-	}
-	resultsNew.emplace_back(simdjsonMinifyTest(jsonData));
-#endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierMinifyTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierMinifyTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-};
-
-test_results prettifyTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Prettify Test";
-#if !defined(ASAN)
-	for (uint32_t x = 0; x < 2; ++x) {
-		glazePrettifyTest(jsonData, false);
-	}
-	resultsNew.emplace_back(glazePrettifyTest(jsonData));
-#endif
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierPrettifyTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierPrettifyTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-};
-
-test_results validationTests(jsonifier::string_view jsonData) {
-	std::vector<results> resultsNew{};
-	test_results jsonResults{};
-	jsonResults.testName = "Validate Test";
-	for (uint32_t x = 0; x < 2; ++x) {
-		jsonifierValidationTest(jsonData, false);
-	}
-	resultsNew.emplace_back(jsonifierValidationTest(jsonData));
-
-	std::string table{};
-	const auto n = resultsNew.size();
-	table += table_header + "\n";
-	std::sort(resultsNew.begin(), resultsNew.end(), std::less<results>());
-	for (uint64_t x = 0; x < n; ++x) {
-		table += resultsNew[x].jsonStats();
-		if (resultsNew[x].getReadResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getReadResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getReadResults());
-		}
-		if (resultsNew[x].getWriteResults().resultSpeed != 9223372036854775808ull && resultsNew[x].getWriteResults().resultSpeed != 0) {
-			jsonResults.results.emplace_back(resultsNew[x].getWriteResults());
-		}
-		if (x != n - 1) {
-			table += "\n";
-		}
-	}
-	jsonResults.markdownResults = table;
-	return jsonResults;
-};
-
-namespace fs = std::filesystem;
-
-jsonifier::string readFileRecursively(const std::string& filename) {
-	fs::path currentPath = fs::current_path();
-	uint32_t currentLevelAbove{};
-	while (!currentPath.empty()) {
-		fs::path filePath = currentPath / filename;
-
-		if (fs::exists(filePath) && fs::is_regular_file(filePath)) {
-			std::ifstream fileStream(filePath);
-			if (fileStream.is_open()) {
-				return jsonifier::string{ std::string((std::istreambuf_iterator<char>(fileStream)), std::istreambuf_iterator<char>()) };
-			} else {
-				std::cerr << "Error opening file: " << filePath << std::endl;
-				return "";
+		std::string table{};
+		const auto n = resultsNew.size();
+		table += table_header + "\n";
+		std::sort(resultsNew.begin(), resultsNew.end(), std::greater<results_data>());
+		for (uint64_t x = 0; x < n; ++x) {
+			jsonResults.results.emplace_back(resultsNew[x]);
+			table += resultsNew[x].jsonStats();
+			if (x != n - 1) {
+				table += "\n";
 			}
 		}
-		currentPath = currentPath.parent_path();
-		++currentLevelAbove;
-		if (currentLevelAbove >= 5) {
-			break;
-		}
+		jsonResults.markdownResults = table;
+		return jsonResults;
 	}
+};
 
-	std::cerr << "File not found: " << filename << std::endl;
-	return "";
-}
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tests_helper<test_type::prettify, std::string, false, iterations, testName> {
+	static test_results run(const std::string& jsonDataNew) {
+		jsonifier::vector<results_data> resultsNew{};
+		test_results jsonResults{};
+		jsonResults.testName = static_cast<std::string>(testName);
+#if !defined(ASAN)
+		resultsNew.emplace_back(json_test_helper<json_library::glaze, test_type::prettify, std::string, false, iterations, testName>::run(jsonDataNew, true));
+#endif
+		resultsNew.emplace_back(json_test_helper<json_library::jsonifier, test_type::prettify, std::string, false, iterations, testName>::run(jsonDataNew, true));
+
+		std::string table{};
+		const auto n = resultsNew.size();
+		table += write_table_header + "\n";
+		std::sort(resultsNew.begin(), resultsNew.end(), std::greater<results_data>());
+		for (uint64_t x = 0; x < n; ++x) {
+			jsonResults.results.emplace_back(resultsNew[x]);
+			table += resultsNew[x].jsonStats();
+			if (x != n - 1) {
+				table += "\n";
+			}
+		}
+		jsonResults.markdownResults = table;
+		return jsonResults;
+	}
+};
+
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tests_helper<test_type::minify, std::string, false, iterations, testName> {
+	static test_results run(const std::string& jsonDataNew) {
+		jsonifier::vector<results_data> resultsNew{};
+		test_results jsonResults{};
+		jsonResults.testName = static_cast<std::string>(testName);
+#if !defined(ASAN)
+		resultsNew.emplace_back(json_test_helper<json_library::simdjson, test_type::minify, std::string, false, iterations, testName>::run(jsonDataNew, true));
+		resultsNew.emplace_back(json_test_helper<json_library::glaze, test_type::minify, std::string, false, iterations, testName>::run(jsonDataNew, true));
+#endif
+		resultsNew.emplace_back(json_test_helper<json_library::jsonifier, test_type::minify, std::string, false, iterations, testName>::run(jsonDataNew, true));
+
+		std::string table{};
+		const auto n = resultsNew.size();
+		table += write_table_header + "\n";
+		std::sort(resultsNew.begin(), resultsNew.end(), std::greater<results_data>());
+		for (uint64_t x = 0; x < n; ++x) {
+			jsonResults.results.emplace_back(resultsNew[x]);
+			table += resultsNew[x].jsonStats();
+			if (x != n - 1) {
+				table += "\n";
+			}
+		}
+		jsonResults.markdownResults = table;
+		return jsonResults;
+	}
+};
+
+template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tests_helper<test_type::validate, std::string, false, iterations, testName> {
+	static test_results run(const std::string& jsonDataNew) {
+		jsonifier::vector<results_data> resultsNew{};
+		test_results jsonResults{};
+		jsonResults.testName = static_cast<std::string>(testName);
+#if !defined(ASAN)
+		resultsNew.emplace_back(json_test_helper<json_library::glaze, test_type::validate, std::string, false, iterations, testName>::run(jsonDataNew, true));
+#endif
+		resultsNew.emplace_back(json_test_helper<json_library::jsonifier, test_type::validate, std::string, false, iterations, testName>::run(jsonDataNew, true));
+
+		std::string table{};
+		const auto n = resultsNew.size();
+		table += read_table_header + "\n";
+		std::sort(resultsNew.begin(), resultsNew.end(), std::greater<results_data>());
+		for (uint64_t x = 0; x < n; ++x) {
+			jsonResults.results.emplace_back(resultsNew[x]);
+			table += resultsNew[x].jsonStats();
+			if (x != n - 1) {
+				table += "\n";
+			}
+		}
+		jsonResults.markdownResults = table;
+		return jsonResults;
+	}
+};
+
+static const std::string section001{ R"(
+ > At least )" +
+	jsonifier::toString(static_cast<uint64_t>(static_cast<float>(iterationsVal) * 0.10f)) +
+	R"( iterations on a 6 core (Intel i7 8700k), until Median Absolute Percentage Error (MAPE) reduced below 5.0%.
+)" };
+
+static constexpr auto newString02{ bnch_swt::joinLiterals<R"(#### Using the following commits:
+----
+| Jsonifier: [)",
+	JSONIFIER_COMMIT, R"(](https://github.com/RealTimeChris/Jsonifier/commit/df00b7f)  
+| Glaze: [)",
+	GLAZE_COMMIT, R"(](https://github.com/stephenberry/glaze/commit/eb7eb40)  
+| Simdjson: [)",
+	SIMDJSON_COMMIT, R"(](https://github.com/simdjson/simdjson/commit/417e760))", "\n\n">() };
+
+static constexpr jsonifier::string_view section002{ newString02 };
 
 static constexpr jsonifier::string_view section00{ R"(# Json-Performance
 Performance profiling of JSON libraries (Compiled and run on Ubuntu-22.04 using the Clang++18 compiler)
 
 Latest Results: ()" };
 
-static constexpr jsonifier::string_view section01{ R"()
-
-### Discord Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData.json):
-
-----
-<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Discord%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Discord%20Test_Results.png?raw=true" 
-alt="DiscordCoreAPI WebSite" width="400"/></p>
-
-)" };
-
-static constexpr jsonifier::string_view section02{ R"(
-
-### Twitter Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/twitter.json):
-
-----
-<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Twitter%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Twitter%20Test_Results.png?raw=true" 
-alt="TwitterCoreAPI WebSite" width="400"/></p>
-
-)" };
-
-static constexpr jsonifier::string_view section03{
+static constexpr jsonifier::string_view section01{
 	R"(
 
-### Single Iteration Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData.json):
+### Json Test (Prettified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData-Prettified.json):
 
 ----
-<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Single%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Single%20Test_Results.png?raw=true" 
-alt="SingleCoreAPI WebSite" width="400"/></p>
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Json%20Test%20(Prettified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Json%20Test%20(Prettified)_Results.png?raw=true" 
+alt="" width="400"/></p>
 
 )"
 };
 
-static constexpr jsonifier::string_view section04{
+static constexpr jsonifier::string_view section02{
 	R"(
 
-### Multi Iteration Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData.json):
+### Json Test (Minified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData-Minified.json):
 
 ----
-<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Multi%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Multi%20Test_Results.png?raw=true" 
-alt="MinifyCoreAPI WebSite" width="400"/></p>
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Json%20Test%20(Minified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Json%20Test%20(Minified)_Results.png?raw=true" 
+alt="" width="400"/></p>
 
 )"
 };
 
-static const std::string section05{
+static const jsonifier::string_view section03{
 	R"(
 
-### ABC Test (Out of Sequence Performance) [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData.json):
+### ABC Test (Out of Sequence Performance - Prettified) [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData-Prettified.json):
 
 ----
-<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Abc%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Abc%20Test_Results.png?raw=true" 
-alt="AbcCoreAPI WebSite" width="400"/></p>
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Abc%20Test%20(Prettified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Abc%20Test%20(Prettified)_Results.png?raw=true" 
+alt="" width="400"/></p>
 
 The JSON documents in the previous tests featured keys ranging from "a" to "z," where each key corresponds to an array of values. Notably, the documents in this test arrange these keys in reverse order, deviating from the typical "a" to "z" arrangement.
 
@@ -2740,42 +2305,108 @@ In contrast, hash-based solutions offer a viable alternative by circumventing th
 )"
 };
 
-static const std::string section06{ R"(
-> )" +
-	jsonifier::toString(iterations) + R"( iterations on a 6 core (Intel i7 8700k))" };
+static constexpr jsonifier::string_view section04{ R"(
 
-static constexpr jsonifier::string_view section07{
+### ABC Test (Out of Sequence Performance - Minified) [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/JsonData-Minified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Abc%20Test%20(Minified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Abc%20Test%20(Minified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section05{ R"(
+
+### Discord Test (Prettified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData-Prettified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Discord%20Test%20(Prettified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Discord%20Test%20(Prettified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section06{ R"(
+
+### Discord Test (Minified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData-Minified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Discord%20Test%20(Minified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Discord%20Test%20(Minified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section07{ R"(
+
+### Canada Test (Prettified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/CanadaData-Prettified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Canada%20Test%20(Prettified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Canada%20Test%20(Prettified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section08{ R"(
+
+### Canada Test (Minified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/CanadaData-Minified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Canada%20Test%20(Minified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Canada%20Test%20(Minified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section09{ R"(
+
+### Twitter Test (Prettified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/TwitterData-Prettified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Twitter%20Test%20(Prettified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Twitter%20Test%20(Prettified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section10{ R"(
+
+### Twitter Test (Minified) Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/TwitterData-Minified.json):
+
+----
+<p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Twitter%20Test%20(Minified)_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Twitter%20Test%20(Minified)_Results.png?raw=true" 
+alt="" width="400"/></p>
+
+)" };
+
+static constexpr jsonifier::string_view section11{
 	R"(
 
-### Minify Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData.json):
+### Minify Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData-Prettified.json):
 
 ----
 <p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Minify%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Minify%20Test_Results.png?raw=true" 
-alt="MinifyCoreAPI WebSite" width="400"/></p>
+alt="" width="400"/></p>
 
 )"
 };
 
-static constexpr jsonifier::string_view section08{
+static constexpr jsonifier::string_view section12{
 	R"(
 
 ### Prettify Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData-Minified.json):
 
 ----
 <p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Prettify%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Prettify%20Test_Results.png?raw=true" 
-alt="PrettifyCoreAPI WebSite" width="400"/></p>
+alt="" width="400"/></p>
 
 )"
 };
 
-static constexpr jsonifier::string_view section09{
+static constexpr jsonifier::string_view section13{
 	R"(
 
-### Validation Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData.json):
+### Validation Test Results [(View the data used in the following test)](https://github.com/RealTimeChris/Json-Performance/blob/main/Json/DiscordData-Prettified.json):
 
 ----
 <p align="left"><a href="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Validate%20Test_Results.png" target="_blank"><img src="https://github.com/RealTimeChris/Json-Performance/blob/main/Graphs/Validate%20Test_Results.png?raw=true" 
-alt="ValidateCoreAPI WebSite" width="400"/></p>
+alt="" width="400"/></p>
 
 )"
 };
@@ -2784,53 +2415,147 @@ alt="ValidateCoreAPI WebSite" width="400"/></p>
 
 int32_t main() {
 	try {
+		test_generator<test_struct> testJsonData{};
+		std::string jsonDataNew{};
 		jsonifier::jsonifier_core parser{};
-		json_data jsonData{ TestGenerator<test_struct>::generateJsonData() };
-#if defined(_WIN32)
-		FileLoader fileLoader01{ "../../ReadMe.md" };
-		FileLoader fileLoader02{ "../../Json/JsonData.json" };
-		FileLoader fileLoader03{ "../../Json/Results.json" };
-		fileLoader02.saveFile(parser.prettify(jsonData.theData));
-#else
-		FileLoader fileLoader01{ "../ReadMe.md" };
-		FileLoader fileLoader02{ "../Json/JsonData.json" };
-		FileLoader fileLoader03{ "../Json/Results.json" };
-		fileLoader02.saveFile(parser.prettify(jsonData.theData));
-#endif
-		jsonData.theData = parser.prettify(jsonData.theData);
+		file_loader fileLoader01{ README_PATH };
+		file_loader fileLoader02{ basePath + "/JsonData-Prettified.json" };
+		parser.serializeJson<jsonifier::serialize_options{ .prettify = true }>(testJsonData, jsonDataNew);
+		fileLoader02.saveFile(jsonDataNew);
+		file_loader fileLoader03{ basePath + "/JsonData-Minified.json" };
+		std::string jsonMinifiedData{ parser.minifyJson(jsonDataNew) };
+		fileLoader03.saveFile(jsonMinifiedData);
+		file_loader fileLoader04{ basePath + "/Results.json" };
+		file_loader fileLoader05{ basePath + "/DiscordData-Prettified.json" };
+		std::string discordData{ fileLoader05.operator std::string() };
+		discord_message discordMessage{};
+		parser.parseJson(discordMessage, discordData);
+		for (auto& value: parser.getErrors()) {
+			std::cout << "PARSER ERROR: " << value << std::endl;
+		}
+		parser.serializeJson<jsonifier::serialize_options{ .prettify = true }>(discordMessage, discordData);
+		fileLoader05.saveFile(discordData);
+		file_loader fileLoader06{ basePath + "/DiscordData-Minified.json" };
+		std::string discordMinifiedData{ fileLoader06.operator std::string() };
+		discordMinifiedData = parser.minifyJson(discordData);
+		fileLoader06.saveFile(discordMinifiedData);
+		file_loader fileLoader07{ basePath + "/CanadaData-Prettified.json" };
+		std::string canadaData{ fileLoader07.operator std::string() };
+		canada_message canadaMessage{};
+		parser.parseJson(canadaMessage, canadaData);
+		for (auto& value: parser.getErrors()) {
+			std::cout << "PARSER ERROR: " << value << std::endl;
+		}
+		parser.serializeJson<jsonifier::serialize_options{ .prettify = true }>(canadaMessage, canadaData);
+		fileLoader07.saveFile(canadaData);
+		file_loader fileLoader08{ basePath + "/CanadaData-Minified.json" };
+		std::string canadaMinifiedData{ fileLoader08.operator std::string() };
+		canadaMinifiedData = parser.minifyJson(canadaData);
+		fileLoader08.saveFile(canadaMinifiedData);
+		file_loader fileLoader09{ basePath + "/TwitterData-Prettified.json" };
+		std::string twitterData{ fileLoader09.operator std::string() };
+		twitter_message twitterMessage{};
+		parser.parseJson(twitterMessage, twitterData);
+		for (auto& value: parser.getErrors()) {
+			std::cout << "PARSER ERROR: " << value << std::endl;
+		}
+		parser.serializeJson<jsonifier::serialize_options{ .prettify = true }>(twitterMessage, twitterData);
+		fileLoader09.saveFile(twitterData);
+		file_loader fileLoader10{ basePath + "/TwitterData-Minified.json" };
+		std::string twitterMinifiedData{ fileLoader10.operator std::string() };
+		twitterMinifiedData = parser.minifyJson(twitterData);
+		fileLoader10.saveFile(twitterMinifiedData);
+		for (auto& value: parser.getErrors()) {
+			std::cout << "PARSER ERROR: " << value << std::endl;
+		}
 		std::string newTimeString{};
 		newTimeString.resize(1024);
 		std::tm resultTwo{};
 		std::time_t result = std::time(nullptr);
 		resultTwo		   = *localtime(&result);
 		conformanceTests();
-		std::vector<test_results> results{};
+		std::vector<test_results> benchmark_data{};
 		newTimeString.resize(strftime(newTimeString.data(), 1024, "%b %d, %Y", &resultTwo));
-		jsonifier::string discordData{ readFileRecursively("../Json/DiscordData.json") };
-		jsonifier::string minifiedDiscordData{ readFileRecursively("../Json/DiscordData-Minified.json") };
-		auto validationResults = validationTests(discordData);
-		results.emplace_back(validationResults);
-		auto discordResults = discordTests(discordData);
-		results.emplace_back(discordResults);
-		auto twitterResults = twitterTests(readFileRecursively("../Json/twitter.json"));
-		results.emplace_back(twitterResults);
-		auto singleTestResults = singleTests(jsonData.theData);
-		results.emplace_back(singleTestResults);
-		auto multiTestResults = multiTests(jsonData.theData);
-		results.emplace_back(multiTestResults);
-		auto abcTestResults = abcTests(jsonData.theData);
-		results.emplace_back(abcTestResults);
-		auto minifyResults = minifyTests(discordData);
-		results.emplace_back(minifyResults);
-		auto prettifyResults = prettifyTests(minifiedDiscordData);
-		results.emplace_back(prettifyResults);
-		jsonifier::string resultsStringJson{};
-		parser.serializeJson(results, resultsStringJson);
-		fileLoader03.saveFile(resultsStringJson);
-		jsonifier::string newerString = section00 + newTimeString + section01 + discordResults.markdownResults + section06 + section02 + twitterResults.markdownResults +
-			section06 + section03 + singleTestResults.markdownResults + section04 + multiTestResults.markdownResults + section06 + section05 + abcTestResults.markdownResults +
-			section06 + section07 + minifyResults.markdownResults + section06 + section08 + prettifyResults.markdownResults + section06 + section09 +
-			validationResults.markdownResults + section06;
+		std::string newerString{ section00 + newTimeString + ")\n" + section002 + section001 + section01 };
+		auto testResults = json_tests_helper<test_type::parse_and_serialize, test<test_struct>, false, iterationsVal, "Json Test (Prettified)">::run(jsonDataNew);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, test<test_struct>, true, iterationsVal, "Json Test (Minified)">::run(jsonMinifiedData);
+		newerString += static_cast<std::string>(section02);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, abc_test<test_struct>, false, iterationsVal, "Abc Test (Prettified)">::run(jsonDataNew);
+		newerString += static_cast<std::string>(section03);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, abc_test<test_struct>, true, iterationsVal, "Abc Test (Minified)">::run(jsonMinifiedData);
+		newerString += static_cast<std::string>(section04);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, discord_message, false, iterationsVal, "Discord Test (Prettified)">::run(discordData);
+		newerString += static_cast<std::string>(section05);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, discord_message, true, iterationsVal, "Discord Test (Minified)">::run(discordMinifiedData);
+		newerString += static_cast<std::string>(section06);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, canada_message, false, iterationsVal, "Canada Test (Prettified)">::run(canadaData);
+		newerString += static_cast<std::string>(section07);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, canada_message, true, iterationsVal, "Canada Test (Minified)">::run(canadaMinifiedData);
+		newerString += static_cast<std::string>(section08);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, twitter_message, false, iterationsVal, "Twitter Test (Prettified)">::run(twitterData);
+		newerString += static_cast<std::string>(section09);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::parse_and_serialize, twitter_message, true, iterationsVal, "Twitter Test (Minified)">::run(twitterMinifiedData);
+		newerString += static_cast<std::string>(section10);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::minify, std::string, false, iterationsVal, "Minify Test">::run(discordData);
+		newerString += static_cast<std::string>(section11);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::prettify, std::string, false, iterationsVal, "Prettify Test">::run(jsonMinifiedData);
+		newerString += static_cast<std::string>(section12);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		testResults = json_tests_helper<test_type::validate, std::string, false, iterationsVal, "Validate Test">::run(discordData);
+		newerString += static_cast<std::string>(section13);
+		newerString += testResults.markdownResults;
+		benchmark_data.emplace_back(testResults);
+		std::string resultsStringJson{};
+		test_results_final resultsData{};
+		for (auto& value: benchmark_data) {
+			test_elements_final testElement{};
+			testElement.testName = value.testName;
+			for (auto& valueNew: value.results) {
+				test_element_final resultFinal{};
+				if (valueNew.readResult.jsonSpeed.has_value()) {
+					resultFinal.libraryName					  = valueNew.name;
+					resultFinal.color						  = valueNew.readResult.color;
+					resultFinal.resultSpeed					  = valueNew.readResult.jsonSpeed.value();
+					resultFinal.medianAbsolutePercentageError = valueNew.readResult.medianAbsolutePercentageError.value();
+					resultFinal.resultType					  = "Read";
+					testElement.results.emplace_back(resultFinal);
+				}
+				if (valueNew.writeResult.jsonSpeed.has_value()) {
+					resultFinal.libraryName					  = valueNew.name;
+					resultFinal.color						  = valueNew.writeResult.color;
+					resultFinal.resultSpeed					  = valueNew.writeResult.jsonSpeed.value();
+					resultFinal.medianAbsolutePercentageError = valueNew.writeResult.medianAbsolutePercentageError.value();
+					resultFinal.resultType					  = "Write";
+					testElement.results.emplace_back(resultFinal);
+				}
+			}
+			resultsData.emplace_back(testElement);
+		}
+		parser.serializeJson<jsonifier::serialize_options{ .prettify = true }>(resultsData, resultsStringJson);
+		fileLoader04.saveFile(resultsStringJson);
 		fileLoader01.saveFile(newerString);
 	} catch (std::runtime_error& e) {
 		std::cout << e.what() << std::endl;

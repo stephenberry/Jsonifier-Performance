@@ -375,14 +375,14 @@ class conformance_test {
 
 	conformance_test(const std::string& stringNew, const std::string& fileContentsNew, bool areWeAFailingTestNew)
 		: fileContents{ fileContentsNew }, areWeAFailingTest{ areWeAFailingTestNew }, testName{ stringNew } {};
-	jsonifier::string testName{};
 	std::string fileContents{};
 	bool areWeAFailingTest{};
+	std::string testName{};
 };
 
 bool processFilesInFolder(std::unordered_map<std::string, conformance_test>& resultFileContents) {
 	try {
-		for (const auto& entry: std::filesystem::directory_iterator(JSON_PATH)) {
+		for (const auto& entry: std::filesystem::directory_iterator(JSON_TEST_PATH)) {
 			if (entry.is_regular_file()) {
 				const std::string fileName = entry.path().filename().string();
 
@@ -390,8 +390,8 @@ bool processFilesInFolder(std::unordered_map<std::string, conformance_test>& res
 					std::ifstream file(entry.path());
 					if (file.is_open()) {
 						std::string fileContents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-						bool returnValue					 = (fileName.find("fail") != std::string::npos);
-						resultFileContents[fileName.c_str()] = { fileName, fileContents, returnValue };
+						bool returnValue					= (fileName.find("fail") != std::string::npos);
+						resultFileContents[fileName.data()] = { fileName, fileContents, returnValue };
 						file.close();
 					} else {
 						std::cerr << "Error opening file: " << fileName << std::endl;
@@ -408,8 +408,9 @@ bool processFilesInFolder(std::unordered_map<std::string, conformance_test>& res
 	return true;
 }
 
-template<typename test_type> void runTest(test_type&& test, const std::string& testName, std::string& dataToParse, jsonifier::jsonifier_core<>& parser, bool doWeFail = true) {
-	auto result = parser.parseJson(test, dataToParse);
+template<typename test_type> void runTest(const std::string& testName, std::string& dataToParse, jsonifier::jsonifier_core<>& parser, bool doWeFail = true) {
+	std::cout << "Running Test: " << testName << std::endl;
+	auto result = parser.parseJson<jsonifier::parse_options{ .validateJson = true, .minified = false }>(test_type{}, parser.minifyJson(dataToParse));
 	if ((parser.getErrors().size() == 0 && result) && !doWeFail) {
 		std::cout << "Test: " << testName << " = Succeeded 01" << std::endl;
 	} else if ((parser.getErrors().size() != 0 || !result) && doWeFail) {
@@ -427,37 +428,37 @@ bool conformanceTests() {
 	std::unordered_map<std::string, conformance_test> jsonTests{};
 	processFilesInFolder(jsonTests);
 	std::cout << "Conformance Tests: " << std::endl;
-	runTest(failTest01{}, "fail1.json", jsonTests["fail1.json"].fileContents, parser);
-	runTest(failTest02{}, "fail2.json", jsonTests["fail2.json"].fileContents, parser);
-	runTest(failTest03{}, "fail3.json", jsonTests["fail3.json"].fileContents, parser);
-	runTest(failTest04{}, "fail4.json", jsonTests["fail4.json"].fileContents, parser);
-	runTest(failTest05{}, "fail5.json", jsonTests["fail5.json"].fileContents, parser);
-	runTest(failTest06{}, "fail6.json", jsonTests["fail6.json"].fileContents, parser);
-	runTest(failTest07{}, "fail7.json", jsonTests["fail7.json"].fileContents, parser);
-	runTest(failTest08{}, "fail8.json", jsonTests["fail8.json"].fileContents, parser);
-	runTest(failTest09{}, "fail9.json", jsonTests["fail9.json"].fileContents, parser);
-	runTest(failTest10{}, "fail10.json", jsonTests["fail10.json"].fileContents, parser);
-	runTest(failTest11{}, "fail11.json", jsonTests["fail11.json"].fileContents, parser);
-	runTest(failTest12{}, "fail12.json", jsonTests["fail12.json"].fileContents, parser);
-	runTest(failTest13{}, "fail13.json", jsonTests["fail13.json"].fileContents, parser);
-	runTest(failTest14{}, "fail14.json", jsonTests["fail14.json"].fileContents, parser);
-	runTest(failTest15{}, "fail15.json", jsonTests["fail15.json"].fileContents, parser);
-	runTest(failTest16{}, "fail16.json", jsonTests["fail16.json"].fileContents, parser);
-	runTest(failTest17{}, "fail17.json", jsonTests["fail17.json"].fileContents, parser);
-	runTest(failTest18{}, "fail18.json", jsonTests["fail18.json"].fileContents, parser);
-	runTest(failTest19{}, "fail19.json", jsonTests["fail19.json"].fileContents, parser);
-	runTest(failTest20{}, "fail20.json", jsonTests["fail20.json"].fileContents, parser);
-	runTest(failTest21{}, "fail21.json", jsonTests["fail21.json"].fileContents, parser);
-	runTest(failTest22{}, "fail22.json", jsonTests["fail22.json"].fileContents, parser);
-	runTest(failTest23{}, "fail23.json", jsonTests["fail23.json"].fileContents, parser);
-	runTest(failTest24{}, "fail24.json", jsonTests["fail24.json"].fileContents, parser);
-	runTest(failTest25{}, "fail25.json", jsonTests["fail25.json"].fileContents, parser);
-	runTest(failTest26{}, "fail26.json", jsonTests["fail26.json"].fileContents, parser);
-	runTest(failTest27{}, "fail27.json", jsonTests["fail27.json"].fileContents, parser);
-	runTest(failTest28{}, "fail28.json", jsonTests["fail28.json"].fileContents, parser);
-	runTest(failTest29{}, "fail29.json", jsonTests["fail29.json"].fileContents, parser);
-	runTest(failTest30{}, "fail30.json", jsonTests["fail30.json"].fileContents, parser);
-	runTest(passTest01{}, "pass1.json", jsonTests["pass1.json"].fileContents, parser, false);
-	runTest(passTest02{}, "pass2.json", jsonTests["pass2.json"].fileContents, parser, false);
+	runTest<failTest01>("fail1.json", jsonTests["fail1.json"].fileContents, parser);
+	runTest<failTest02>("fail2.json", jsonTests["fail2.json"].fileContents, parser);
+	runTest<failTest03>("fail3.json", jsonTests["fail3.json"].fileContents, parser);
+	runTest<failTest04>("fail4.json", jsonTests["fail4.json"].fileContents, parser);
+	runTest<failTest05>("fail5.json", jsonTests["fail5.json"].fileContents, parser);
+	runTest<failTest06>("fail6.json", jsonTests["fail6.json"].fileContents, parser);
+	runTest<failTest07>("fail7.json", jsonTests["fail7.json"].fileContents, parser);
+	runTest<failTest08>("fail8.json", jsonTests["fail8.json"].fileContents, parser);
+	runTest<failTest09>("fail9.json", jsonTests["fail9.json"].fileContents, parser);
+	runTest<failTest10>("fail10.json", jsonTests["fail10.json"].fileContents, parser);
+	runTest<failTest11>("fail11.json", jsonTests["fail11.json"].fileContents, parser);
+	runTest<failTest12>("fail12.json", jsonTests["fail12.json"].fileContents, parser);
+	runTest<failTest13>("fail13.json", jsonTests["fail13.json"].fileContents, parser);
+	runTest<failTest14>("fail14.json", jsonTests["fail14.json"].fileContents, parser);
+	runTest<failTest15>("fail15.json", jsonTests["fail15.json"].fileContents, parser);
+	runTest<failTest16>("fail16.json", jsonTests["fail16.json"].fileContents, parser);
+	runTest<failTest17>("fail17.json", jsonTests["fail17.json"].fileContents, parser);
+	runTest<failTest18>("fail18.json", jsonTests["fail18.json"].fileContents, parser);
+	runTest<failTest19>("fail19.json", jsonTests["fail19.json"].fileContents, parser);
+	runTest<failTest20>("fail20.json", jsonTests["fail20.json"].fileContents, parser);
+	runTest<failTest21>("fail21.json", jsonTests["fail21.json"].fileContents, parser);
+	runTest<failTest22>("fail22.json", jsonTests["fail22.json"].fileContents, parser);
+	runTest<failTest23>("fail23.json", jsonTests["fail23.json"].fileContents, parser);
+	runTest<failTest24>("fail24.json", jsonTests["fail24.json"].fileContents, parser);
+	runTest<failTest25>("fail25.json", jsonTests["fail25.json"].fileContents, parser);
+	runTest<failTest26>("fail26.json", jsonTests["fail26.json"].fileContents, parser);
+	runTest<failTest27>("fail27.json", jsonTests["fail27.json"].fileContents, parser);
+	runTest<failTest28>("fail28.json", jsonTests["fail28.json"].fileContents, parser);
+	runTest<failTest29>("fail29.json", jsonTests["fail29.json"].fileContents, parser);
+	runTest<failTest30>("fail30.json", jsonTests["fail30.json"].fileContents, parser);
+	runTest<passTest01>("pass1.json", jsonTests["pass1.json"].fileContents, parser, false);
+	runTest<passTest02>("pass2.json", jsonTests["pass2.json"].fileContents, parser, false);
 	return true;
 }
