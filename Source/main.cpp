@@ -18,9 +18,9 @@
 constexpr bnch_swt::string_literal jsonifierLibraryName{ "jsonifier" };
 constexpr bnch_swt::string_literal simdjsonLibraryName{ "simdjson" };
 constexpr bnch_swt::string_literal glazeLibraryName{ "glaze" };
-constexpr bnch_swt::string_literal jsonifierCommitUrl{ bnch_swt::joinLiterals<"https://github.com/RealTimeChris/Jsonifier/commit/", JSONIFIER_COMMIT>() };
-constexpr bnch_swt::string_literal simdjsonCommitUrl{ bnch_swt::joinLiterals<"https://github.com/simdjson/simdjson/commit/", SIMDJSON_COMMIT>() };
-constexpr bnch_swt::string_literal glazeCommitUrl{ bnch_swt::joinLiterals<"https://github.com/stephenberry/glaze/commit/", GLAZE_COMMIT>() };
+constexpr bnch_swt::string_literal jsonifierCommitUrl{ bnch_swt::combineLiterals<"https://github.com/RealTimeChris/Jsonifier/commit/", JSONIFIER_COMMIT>() };
+constexpr bnch_swt::string_literal simdjsonCommitUrl{ bnch_swt::combineLiterals<"https://github.com/simdjson/simdjson/commit/", SIMDJSON_COMMIT>() };
+constexpr bnch_swt::string_literal glazeCommitUrl{ bnch_swt::combineLiterals<"https://github.com/stephenberry/glaze/commit/", GLAZE_COMMIT>() };
 
 struct geometry_data {
 	std::vector<std::vector<std::vector<double>>> coordinates{};
@@ -1271,7 +1271,7 @@ template<json_library lib, test_type type, typename test_data_type, bool minifie
 template<typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName>
 struct json_test_helper<json_library::jsonifier, test_type::parse_and_serialize, test_data_type, minified, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
 		jsonifier::jsonifier_core parser{};
@@ -1313,7 +1313,7 @@ struct json_test_helper<json_library::jsonifier, test_type::parse_and_serialize,
 
 template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::jsonifier, test_type::prettify, std::string, false, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
 		jsonifier::jsonifier_core parser{};
@@ -1341,7 +1341,7 @@ template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tes
 
 template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::jsonifier, test_type::minify, std::string, false, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 		std::string newerBuffer{};
 		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
 		jsonifier::jsonifier_core parser{};
@@ -1368,7 +1368,7 @@ template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tes
 
 template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::jsonifier, test_type::validate, std::string, false, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(jsonifierLibraryName), static_cast<std::string>(testName), static_cast<std::string>(jsonifierCommitUrl), iterations };
 		jsonifier::jsonifier_core parser{};
@@ -1398,7 +1398,7 @@ template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tes
 template<typename test_data_type, bool minified, uint64_t iterations, bnch_swt::string_literal testName>
 struct json_test_helper<json_library::glaze, test_type::parse_and_serialize, test_data_type, minified, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
 		test_data_type testData{};
@@ -1434,7 +1434,7 @@ struct json_test_helper<json_library::glaze, test_type::parse_and_serialize, tes
 
 template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::glaze, test_type::prettify, std::string, false, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
 		std::string newerBuffer{};
@@ -1457,13 +1457,13 @@ template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tes
 
 template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::glaze, test_type::minify, std::string, false, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
 		std::string newerBuffer{};
 		auto writeResult =
 			bnch_swt::benchmark_suite<"Json-Tests">::benchmark<bnch_swt::stringLiteralFromView<testName.size()>(testName), jsonifierLibraryName, "steelblue", iterations>([&]() {
-				glz::minify_json(buffer, newerBuffer);
+				newerBuffer = glz::minify_json(buffer);
 				bnch_swt::doNotOptimizeAway(newerBuffer);
 			});
 
@@ -1480,7 +1480,7 @@ template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tes
 
 template<uint64_t iterations, bnch_swt::string_literal testName> struct json_test_helper<json_library::glaze, test_type::validate, std::string, false, iterations, testName> {
 	static auto run(const std::string& newBuffer, bool doWePrint = true) {
-		const std::string buffer{ newBuffer };
+		std::string buffer{ newBuffer };
 
 		results_data r{ static_cast<std::string>(glazeLibraryName), static_cast<std::string>(testName), static_cast<std::string>(glazeCommitUrl), iterations };
 		auto writeResult =
@@ -2072,7 +2072,7 @@ struct json_test_helper<json_library::simdjson, test_type::parse_and_serialize, 
 					try {
 						getValue(testData, parser.iterate(buffer).value());
 						bnch_swt::doNotOptimizeAway(testData);
-					} catch (std ::exception& error) {
+					} catch (std::exception& error) {
 						std::cout << "Simdjson Error: " << error.what() << std::endl;
 					}
 				});
@@ -2103,7 +2103,7 @@ template<uint64_t iterations, bnch_swt::string_literal testName> struct json_tes
 					try {
 						newerBuffer = simdjson::minify(parser.parse(buffer));
 						bnch_swt::doNotOptimizeAway(newerBuffer);
-					} catch (std ::exception& error) {
+					} catch (std::exception& error) {
 						std::cout << "Simdjson Error: " << error.what() << std::endl;
 					}
 					return;
@@ -2248,14 +2248,12 @@ static const std::string section001{ R"(
 	R"( iterations on a 6 core (Intel i7 8700k), until Median Absolute Percentage Error (MAPE) reduced below 5.0%.
 )" };
 
-static constexpr auto newString02{ bnch_swt::joinLiterals<R"(#### Using the following commits:
+static constexpr auto newString02{ bnch_swt::combineLiterals<R"(#### Using the following commits:
 ----
 | Jsonifier: [)",
-	JSONIFIER_COMMIT, R"(](https://github.com/RealTimeChris/Jsonifier/commit/df00b7f)  
-| Glaze: [)",
-	GLAZE_COMMIT, R"(](https://github.com/stephenberry/glaze/commit/eb7eb40)  
-| Simdjson: [)",
-	SIMDJSON_COMMIT, R"(](https://github.com/simdjson/simdjson/commit/417e760))", "\n\n">() };
+	JSONIFIER_COMMIT, R"(](https://github.com/RealTimeChris/Jsonifier/commit/)", JSONIFIER_COMMIT, ")  \n", R"(| Glaze: [)", GLAZE_COMMIT,
+	R"(](https://github.com/stephenberry/glaze/commit/)", GLAZE_COMMIT, ")  \n", R"(| Simdjson: [)", SIMDJSON_COMMIT, R"(](https://github.com/simdjson/simdjson/commit/)",
+	SIMDJSON_COMMIT, ")  \n">() };
 
 static constexpr jsonifier::string_view section002{ newString02 };
 
@@ -2411,7 +2409,29 @@ alt="" width="400"/></p>
 )"
 };
 
-#include "ConformanceTests.hpp"
+//#include "ConformanceTests.hpp"
+
+inline std::string getCurrentWorkingDirectory() {
+	try {
+		return std::filesystem::current_path().string();
+	} catch (const std::filesystem::filesystem_error& e) {
+		std::cout << "Error: " << e.what() << std::endl;
+		return "";
+	}
+}
+
+inline void executePythonScript(const std::string& scriptPath, const std::string& argument01, const std::string& argument02) {
+#if defined(JSONIFIER_WIN)
+	static constexpr std::string_view pythonName{ "python " };
+#else
+	static constexpr std::string_view pythonName{ "python3 " };
+#endif
+	std::string command = static_cast<std::string>(pythonName) + scriptPath + " " + argument01 + " " + argument02;
+	int32_t result		= system(command.c_str());
+	if (result != 0) {
+		std::cout << "Error: Failed to execute Python script. Command exited with code " << result << std::endl;
+	}
+}
 
 int32_t main() {
 	try {
@@ -2473,7 +2493,6 @@ int32_t main() {
 		std::tm resultTwo{};
 		std::time_t result = std::time(nullptr);
 		resultTwo		   = *localtime(&result);
-		conformanceTests();
 		std::vector<test_results> benchmark_data{};
 		newTimeString.resize(strftime(newTimeString.data(), 1024, "%b %d, %Y", &resultTwo));
 		std::string newerString{ section00 + newTimeString + ")\n" + section002 + section001 + section01 };
@@ -2557,6 +2576,7 @@ int32_t main() {
 		parser.serializeJson<jsonifier::serialize_options{ .prettify = true }>(resultsData, resultsStringJson);
 		fileLoader04.saveFile(resultsStringJson);
 		fileLoader01.saveFile(newerString);
+		executePythonScript(static_cast<std::string>(BASE_PATH) + "/GenerateGraphs.py", basePath + "/Results.json", static_cast<std::string>(GRAPHS_PATH));
 	} catch (std::runtime_error& e) {
 		std::cout << e.what() << std::endl;
 	} catch (std::out_of_range& e) {
